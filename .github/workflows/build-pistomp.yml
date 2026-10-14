@@ -23,7 +23,7 @@ jobs:
     - name: Fetch and Cross-Compile Upstream Zita-Resampler
       run: |
         # Download verified upstream archive
-        curl -L curl -L "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz" -o zita.tar.xz
+        curl -L "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz" -o zita.tar.xz
         tar -xJf zita.tar.xz
         cd zita-resampler-1.11.2/source
         
