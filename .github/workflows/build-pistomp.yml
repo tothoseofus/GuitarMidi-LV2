@@ -28,7 +28,7 @@ jobs:
         cd zita-resampler-1.11.2/source
         
         # FIX: Create a local symlink to satisfy internal folder layout include matching
-        ln -s . zita-resampler
+        # ln -s . zita-resampler
         
         # Cross-compile target configurations for static linking layout
         export CXX=aarch64-linux-gnu-g++
