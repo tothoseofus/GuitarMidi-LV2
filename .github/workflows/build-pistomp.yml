@@ -15,20 +15,26 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install ARM64 Cross-Compiler and Build Dependencies
+    - name: Set up ARM64 Cross-Compiler Toolchain
+      uses: a7632128/setup-aarch64-linux-gnu@v1
+
+    - name: Install Native Build Tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        sudo apt-get install -y cmake ninja-build build-essential
 
-    - name: Cross-Compile zita-resampler dependency for ARM64
+    - name: Cross-Compile zita-resampler dependency from GitHub Mirror
       run: |
-        # Download and cross-compile zita-resampler source because the ARM64 package isn't natively available on standard Ubuntu x86 runners
-        git clone https://gitlab.com
+        # Using a reliable GitHub mirror to bypass the GitLab 403 network block
+        git clone https://github.com
         cd zita-resampler
+        
+        # Build using the ARM64 cross-compilers
         export CC=aarch64-linux-gnu-gcc
         export CXX=aarch64-linux-gnu-g++
         make
-        # Create a mock install directory to point CMake towards
+        
+        # Create local dependency directories
         mkdir -p ../deps/lib ../deps/include/zita-resampler
         cp source/libzita-resampler.a ../deps/lib/
         cp source/zita-resampler/*.h ../deps/include/zita-resampler/
@@ -39,7 +45,6 @@ jobs:
         mkdir build
         cd build
         
-        # Point CMake to use the ARM64 cross-compiler toolchain and our compiled dependencies
         cmake -G "Ninja" \
           -DCMAKE_SYSTEM_NAME=Linux \
           -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
