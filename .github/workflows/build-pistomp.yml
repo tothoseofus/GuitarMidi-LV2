@@ -30,15 +30,16 @@ jobs:
         # Cross-compile target configurations for static linking layout
         export CXX=aarch64-linux-gnu-g++
         
-        # FIX: Removed the 'ln' shortcut command. Instead, we use '-I.' and '-I..' flags 
-        # to ensure the compiler seamlessly tracks paths starting with 'zita-resampler/'
+        # Compile source objects using the parent directory path as an include flag
         $CXX -O2 -Wall -fPIC -I. -I.. -c resampler.cc cresampler.cc vresampler.cc
         aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o cresampler.o vresampler.o
         
         # Populate the target configuration folders that the primary CMake tool expects
         mkdir -p ../../deps/lib ../../deps/include/zita-resampler
         cp libzita-resampler.a ../../deps/lib/
-        cp *.h ../../deps/include/zita-resampler/
+        
+        # FIX: The *.h header files are located in the parent directory (..), not inside source/
+        cp ../*.h ../../deps/include/zita-resampler/
         cd ../..
 
     - name: Configure CMake for ARM64
