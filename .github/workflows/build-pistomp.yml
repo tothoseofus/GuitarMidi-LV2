@@ -27,14 +27,12 @@ jobs:
         tar -xJf zita.tar.xz
         cd zita-resampler-1.11.2/source
         
-        # FIX: Create a local symlink to satisfy internal folder layout include matching
-        # ln -s . zita-resampler
-        
         # Cross-compile target configurations for static linking layout
         export CXX=aarch64-linux-gnu-g++
         
-        # Compile source objects with an explicit local include flag (-I.)
-        $CXX -O2 -Wall -fPIC -I. -c resampler.cc cresampler.cc vresampler.cc
+        # FIX: Removed the 'ln' shortcut command. Instead, we use '-I.' and '-I..' flags 
+        # to ensure the compiler seamlessly tracks paths starting with 'zita-resampler/'
+        $CXX -O2 -Wall -fPIC -I. -I.. -c resampler.cc cresampler.cc vresampler.cc
         aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o cresampler.o vresampler.o
         
         # Populate the target configuration folders that the primary CMake tool expects
