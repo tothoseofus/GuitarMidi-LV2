@@ -18,26 +18,30 @@ jobs:
     - name: Install ARM64 Cross-Compiler and Build Tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip curl
+        sudo apt-get install -y build-essential cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip curl tar xz-utils
 
-    - name: Fetch and Cross-Compile zita-resampler Source Archive
+    - name: Fetch and Cross-Compile Upstream Zita-Resampler
       run: |
-        # Download the code archive directly via curl to completely bypass git clone syntax bugs
-        curl -L https://github.com -o zita.zip
-        unzip zita.zip
-        mv zita-resampler-master zita-resampler
-        cd zita-resampler
+        # Download your exact verified upstream tarball
+        curl -L "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz" -o zita.tar.xz
         
-        # Build using the native Ubuntu cross-compiler toolset
+        # Use upper-case J flag to explicitly extract xz files cleanly
+        tar -xJf zita.tar.xz
+        cd zita-resampler-1.11.2/source
+        
+        # Cross-compile target configurations for static linking layout
         export CC=aarch64-linux-gnu-gcc
         export CXX=aarch64-linux-gnu-g++
-        make
         
-        # Structure the target directories for the main CMake engine pass
-        mkdir -p ../deps/lib ../deps/include/zita-resampler
-        cp source/libzita-resampler.a ../deps/lib/
-        cp source/zita-resampler/*.h ../deps/include/zita-resampler/
-        cd ..
+        # Generate the library objects manually to ensure a static .a archive is generated cleanly
+        $CXX -O2 -Wall -fPIC -c resampler.cc cresampler.cc vresampler.cc
+        aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o cresampler.o vresampler.o
+        
+        # Populate the target configuration folders that the primary CMake tool expects
+        mkdir -p ../../deps/lib ../../deps/include/zita-resampler
+        cp libzita-resampler.a ../../deps/lib/
+        cp *.h ../../deps/include/zita-resampler/
+        cd ../..
 
     - name: Configure CMake for ARM64
       run: |
