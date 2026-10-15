@@ -39,7 +39,19 @@ jobs:
         cp libzita-resampler.a ../../deps/lib/
         
         # FIX: The *.h header files are located in the parent directory (..), not inside source/
-        cp ../*.h ../../deps/include/zita-resampler/
+        
+        for header in cresampler.h resampler-table.h resampler.h vresampler.h; do
+            header_path=$(find .. -type f -name "$header" -print -quit)
+
+            if [ -z "$header_path" ]; then
+                echo "ERROR: Could not find $header"
+                find .. -maxdepth 3 -type f -name '*.h' -print
+                exit 1
+            fi
+
+            cp "$header_path" "$GITHUB_WORKSPACE/deps/include/zita-resampler/"
+        done
+        
         cd ../..
 
     - name: Configure CMake for ARM64
