@@ -47,15 +47,18 @@ jobs:
         mkdir build
         cd build
         
-        cmake -G "Ninja" \
+        cmake -G Ninja \
           -DCMAKE_SYSTEM_NAME=Linux \
           -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
           -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
           -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=./install_dist \
-          -DZITA_RESAMPLER_INCLUDE_DIR=${{ github.workspace }}/deps/include \
-          -DZITA_RESAMPLER_LIBRARY=${{ github.workspace }}/deps/lib/libzita-resampler.a \
+          -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install_dist" \
+          -DBUILD_UI=OFF \
+          -DBUILD_ANALYSIS_APP=OFF \
+          -DBUILD_DEB=OFF \
+          -DZITA_RESAMPLER_INCLUDE_DIR="${GITHUB_WORKSPACE}/deps/include" \
+          -DZITA_RESAMPLER_LIB="${GITHUB_WORKSPACE}/deps/lib/libzita-resampler.a" \
           ..
 
     - name: Build and Install Bundle
