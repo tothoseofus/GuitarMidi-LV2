@@ -54,6 +54,37 @@ jobs:
         
         cd ../..
 
+
+        # Build flatc using the GitHub runner's native compiler.
+        # Do NOT use the aarch64 cross-compiler for this step.
+
+        cmake \
+          -S ext/tensorflow/tensorflow/lite/tools/cmake/native_tools/flatbuffers \
+          -B flatc-native-build \
+          -DCMAKE_BUILD_TYPE=Release
+
+        cmake --build flatc-native-build --parallel 2
+
+        # Locate the host-native flatc executable.
+        FLATC_PATH=$(find "$GITHUB_WORKSPACE/flatc-native-build" \
+          -type f -name flatc -executable -print -quit)
+
+        if [ -z "$FLATC_PATH" ]; then
+            echo "ERROR: Host-native flatc was not built."
+            find "$GITHUB_WORKSPACE/flatc-native-build" -type f -print
+            exit 1
+        fi
+
+        FLATC_DIR=$(dirname "$FLATC_PATH")
+
+        echo "Host flatc found at: $FLATC_PATH"
+        "$FLATC_PATH" --version
+
+        # Make the directory available to subsequent GitHub Actions steps.
+        echo "TFLITE_HOST_TOOLS_DIR=$FLATC_DIR" >> "$GITHUB_ENV"
+
+
+
     - name: Configure CMake for ARM64
       run: |
         mkdir build
@@ -71,6 +102,7 @@ jobs:
           -DBUILD_DEB=OFF \
           -DZITA_RESAMPLER_INCLUDE_DIR="${GITHUB_WORKSPACE}/deps/include" \
           -DZITA_RESAMPLER_LIB="${GITHUB_WORKSPACE}/deps/lib/libzita-resampler.a" \
+          -DTFLITE_HOST_TOOLS_DIR="${TFLITE_HOST_TOOLS_DIR}" \
           ..
 
     - name: Build and Install Bundle
