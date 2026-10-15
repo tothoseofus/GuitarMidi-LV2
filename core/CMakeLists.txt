@@ -16,12 +16,32 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 configure_file(include/guitarmidi/config.hpp.in include/guitarmidi/config.hpp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
-include_directories(/usr/include)
+
 include_directories(include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-find_package(PkgConfig REQUIRED)
-find_library(ZITA_RESAMPLER_LIB zita-resampler)
-message("Found zita-resampler library: ${ZITA_RESAMPLER_LIB}")
+
+set(ZITA_RESAMPLER_INCLUDE_DIR
+    "${CMAKE_SOURCE_DIR}/deps/include"
+    CACHE PATH "zita-resampler include directory")
+
+set(ZITA_RESAMPLER_LIB
+    "${CMAKE_SOURCE_DIR}/deps/lib/libzita-resampler.a"
+    CACHE FILEPATH "zita-resampler static library")
+
+if(NOT EXISTS "${ZITA_RESAMPLER_LIB}")
+    message(FATAL_ERROR
+        "zita-resampler library not found: ${ZITA_RESAMPLER_LIB}")
+endif()
+
+if(NOT EXISTS
+   "${ZITA_RESAMPLER_INCLUDE_DIR}/zita-resampler/resampler.h")
+    message(FATAL_ERROR
+        "zita-resampler headers not found in: ${ZITA_RESAMPLER_INCLUDE_DIR}")
+endif()
+
+message(STATUS "zita-resampler library: ${ZITA_RESAMPLER_LIB}")
+message(STATUS "zita-resampler headers: ${ZITA_RESAMPLER_INCLUDE_DIR}")
+
 #find_package(OpenMP REQUIRED)
 # pkg_check_modules(Pango REQUIRED pango)
 
@@ -80,4 +100,13 @@ set(SRC    src/fretboard.cpp src/fretboardrepresentation.cpp src/guitarnote.cpp 
 add_library(guitarmidi_core STATIC ${SRC})
 set_target_properties(guitarmidi_core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(guitarmidi_core PUBLIC tensorflow-lite  ${ZITA_RESAMPLER_LIB} )
+
+target_include_directories(guitarmidi_core PUBLIC
+    "${ZITA_RESAMPLER_INCLUDE_DIR}"
+)
+
+target_link_libraries(guitarmidi_core PUBLIC
+    tensorflow-lite
+    "${ZITA_RESAMPLER_LIB}"
+)
+
