@@ -31,8 +31,14 @@ jobs:
         export CXX=aarch64-linux-gnu-g++
         
         # Compile source objects using the parent directory path as an include flag
-        $CXX -O2 -Wall -fPIC -I. -I.. -c resampler.cc cresampler.cc vresampler.cc
-        aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o cresampler.o vresampler.o
+        $CXX -O2 -Wall -fPIC -I. -I.. -c resampler.cc resampler-table.cc cresampler.cc vresampler.cc
+        aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o resampler-table.o cresampler.o vresampler.o
+
+        echo "Checking for Resampler_table::destroy in the archive..."
+        nm -C --defined-only libzita-resampler.a | grep -F 'Resampler_table::destroy' || {
+            echo "ERROR: Resampler_table::destroy is not defined in the static archive"
+            exit 1
+        }
         
         # Populate the target configuration folders that the primary CMake tool expects
         mkdir -p ../../deps/lib ../../deps/include/zita-resampler
