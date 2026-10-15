@@ -55,36 +55,40 @@ jobs:
         cd ../..
 
 
-        # Build flatc using the GitHub runner's native compiler.
-        # Do NOT use the aarch64 cross-compiler for this step.
+    - name: Build host-native flatc
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Remove any previous build made with the ARM64 cross-compiler.
+        rm -rf "$GITHUB_WORKSPACE/flatc-native-build"
 
-        cmake \
-          -S ext/tensorflow/tensorflow/lite/tools/cmake/native_tools/flatbuffers \
-          -B flatc-native-build \
-          -DCMAKE_BUILD_TYPE=Release
+        # Build flatc for the GitHub Actions runner, not the Raspberry Pi.
+        env -u CC -u CXX -u AR -u AS -u LD \
+            -u RANLIB -u STRIP -u CFLAGS -u CXXFLAGS -u LDFLAGS \
+          cmake \
+            -S "$GITHUB_WORKSPACE/ext/tensorflow/tensorflow/lite/tools/cmake/native_tools/flatbuffers" \
+            -B "$GITHUB_WORKSPACE/flatc-native-build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=/usr/bin/gcc \
+            -DCMAKE_CXX_COMPILER=/usr/bin/g++
 
-        cmake --build flatc-native-build --parallel 2
+          cmake --build "$GITHUB_WORKSPACE/flatc-native-build" --parallel 2
 
-        # Locate the host-native flatc executable.
-        FLATC_PATH=$(find "$GITHUB_WORKSPACE/flatc-native-build" \
-          -type f -name flatc -executable -print -quit)
+          # Use the installed flatc, not an intermediate build artifact.
+          FLATC_PATH="$GITHUB_WORKSPACE/flatc-native-build/flatbuffers-flatc/bin/flatc"
 
-        if [ -z "$FLATC_PATH" ]; then
-            echo "ERROR: Host-native flatc was not built."
-            find "$GITHUB_WORKSPACE/flatc-native-build" -type f -print
+          if [ ! -x "$FLATC_PATH" ]; then
+            echo "ERROR: Host-native flatc was not found at $FLATC_PATH"
+            find "$GITHUB_WORKSPACE/flatc-native-build" -type f -name flatc -print
             exit 1
-        fi
+          fi
 
-        FLATC_DIR=$(dirname "$FLATC_PATH")
+          # Verify that this executable runs on the GitHub Actions runner.
+          file "$FLATC_PATH"
+          "$FLATC_PATH" --version
 
-        echo "Host flatc found at: $FLATC_PATH"
-        "$FLATC_PATH" --version
-
-        # Make the directory available to subsequent GitHub Actions steps.
-        echo "TFLITE_HOST_TOOLS_DIR=$FLATC_DIR" >> "$GITHUB_ENV"
-
-
-
+          echo "TFLITE_HOST_TOOLS_DIR=$(dirname "$FLATC_PATH")" >> "$GITHUB_ENV"
+    
     - name: Configure CMake for ARM64
       run: |
         mkdir build
