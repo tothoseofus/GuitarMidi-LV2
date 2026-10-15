@@ -117,8 +117,8 @@ jobs:
 
     - name: Package Bundle
       run: |
-        cd build/install_dist
-        zip -r guitarmidi-pistomp.zip lib/lv2/guitarmidi.lv2 || zip -r guitarmidi-pistomp.zip guitarmidi.lv2
+        cd install_dist
+        zip -r guitarmidi-pistomp.zip guitarmidi.lv2
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
