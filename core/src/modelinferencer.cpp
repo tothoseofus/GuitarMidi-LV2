@@ -9,7 +9,8 @@
             fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
             exit(1);                                                 \
         }
-    void GuitarMidi::ModelInferencer::inferencing_loop(const std::string& bundle_path)
+
+/*    void GuitarMidi::ModelInferencer::inferencing_loop(const std::string& bundle_path)
     {
         if (!initialize_interpreter(bundle_path)) {
             //lv2_log_error(&g_logger, "Failed to initialize interpreter.\n");
@@ -41,7 +42,42 @@
 
 
         }
+    }*/
+
+
+void GuitarMidi::ModelInferencer::inferencing_loop(const std::string& bundle_path)
+{
+    if (!initialize_interpreter(bundle_path)) {
+        g_logger.error("Failed to initialize interpreter.\n");
+        m_initialization_promise.set_value(false);
+        return;
     }
+
+    m_initialization_promise.set_value(true);
+
+    while (!stop_thread) {
+
+        if (!audio_input_buffer.has_new_data() || !m_interpreter) {
+            // Avoid busy-waiting while waiting for audio.
+            std::this_thread::sleep_for(
+                std::chrono::microseconds(200));
+            continue;
+        }
+
+        float* input_buffer =
+            m_interpreter->typed_input_tensor<float>(0);
+
+        audio_input_buffer.get_latest_data(input_buffer);
+
+        TFLITE_MINIMAL_CHECK(
+            m_interpreter->Invoke() == kTfLiteOk);
+
+        float* output_data =
+            m_interpreter->typed_output_tensor<float>(0);
+
+        model_output_buffer.add_data(output_data);
+    }
+}
 
     bool GuitarMidi::ModelInferencer::initialize_interpreter(const std::string &bundle_path)
     {
