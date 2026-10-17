@@ -131,6 +131,10 @@ class ModelInferencer {
     private:
         unique_ptr<FlatBufferModel> m_model;
         unique_ptr<Interpreter> m_interpreter;
+
+        // Must outlive the TensorFlow Lite interpreter.
+        TfLiteDelegate* m_xnnpack_delegate = nullptr;
+
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES*NUM_HARMONICS*BUFFER_SIZE> audio_input_buffer;
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES> model_output_buffer;
         std::thread inferencing_thread;
