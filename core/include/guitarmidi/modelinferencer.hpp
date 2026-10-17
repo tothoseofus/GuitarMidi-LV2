@@ -21,6 +21,7 @@
 #include <future>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 #include <guitarmidi/common.hpp>
 #include <tensorflow/lite/version.h>
 #include "tensorflow/core/public/release_version.h"
@@ -99,7 +100,8 @@ class ModelInferencer {
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES*NUM_HARMONICS*BUFFER_SIZE> audio_input_buffer;
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES> model_output_buffer;
         std::thread inferencing_thread;
-        bool stop_thread;
+        //bool stop_thread;
+        std::atomic<bool> stop_thread{false};
         /** Runs model inference on frames received by the input ring buffer. */
         void inferencing_loop(const std::string& bundle_path);
 
