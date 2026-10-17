@@ -22,6 +22,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <cstring>
+#include <semaphore.h>
 #include <guitarmidi/common.hpp>
 #include <tensorflow/lite/version.h>
 #include "tensorflow/core/public/release_version.h"
@@ -45,46 +47,78 @@ using namespace tflite;
 
 namespace GuitarMidi{
     //spsc ring buffer for audio input and model output with atomic read and write indices for thread safety
-    template<size_t NumSlots,size_t Stride>
-    class SpscRingBuffer{
+    template<size_t NumSlots, size_t Stride>
+    class SpscRingBuffer {
+        static_assert(
+            NumSlots >= 2 && (NumSlots & (NumSlots - 1)) == 0,
+            "NumSlots must be a power of two"
+        );
+
         float buffer[NumSlots][Stride];
-        atomic<size_t> write_index;
-        atomic<size_t> read_index;
+
+        std::atomic<size_t> write_index{0};
+        std::atomic<size_t> read_index{0};
+
     public:
-        /** Creates an empty single-producer, single-consumer ring buffer. */
-        SpscRingBuffer():write_index(0),read_index(0){
-           
-        }
-        /** Adds one fixed-size frame to the ring buffer. */
-        void add_data(const float* data){
-            size_t index=write_index.load();
-            //performant memcpy for fixed size data
-            memcpy(buffer[index&(NumSlots-1)],data,Stride*sizeof(float));
-            write_index.store((index+1)); // wrap around using bitwise AND, NumSlots must be a power of 2
+        // Called only by the producer.
+        // Returns false if the buffer is full.
+        bool add_data(const float* data) {
+            const size_t write =
+                write_index.load(std::memory_order_relaxed);
 
+            const size_t read =
+                read_index.load(std::memory_order_acquire);
 
-    }
-        /** Reports whether unread data is available. */
-        bool has_new_data() const{
-            return write_index.load()!=read_index.load();
-        }
-        /** Copies the next unread frame into the supplied buffer. */
-        void get_latest_data(float* output){
-            size_t index=read_index.load();
-            memcpy(output,buffer[index&(NumSlots-1)],Stride*sizeof(float));
-            read_index.store((index+1)); // wrap around using bitwise AND, NumSlots must be a power of 2
-        }
-        /** Returns the next unread frame, or nullptr when none is available. */
-        float* get_latest_data(){
-            if(!has_new_data()){
-                return nullptr;
+            if (write - read >= NumSlots) {
+                return false;
             }
-            size_t index=read_index.load();
-            read_index.store((index+1));
-            return buffer[index&(NumSlots-1)];
+
+            std::memcpy(
+                buffer[write & (NumSlots - 1)],
+                data,
+                Stride * sizeof(float)
+            );
+
+            write_index.store(
+                write + 1,
+                std::memory_order_release
+            );
+
+            return true;
+        }
+
+        bool has_new_data() const {
+            return write_index.load(std::memory_order_acquire) !=
+                   read_index.load(std::memory_order_relaxed);
+        }
+
+        // Called only by the consumer.
+        // Returns false if the buffer is empty.
+        bool get_latest_data(float* output) {
+            const size_t read =
+                read_index.load(std::memory_order_relaxed);
+
+            const size_t write =
+                write_index.load(std::memory_order_acquire);
+
+            if (read == write) {
+                return false;
+            }
+
+            std::memcpy(
+                output,
+                buffer[read & (NumSlots - 1)],
+                Stride * sizeof(float)
+            );
+
+            read_index.store(
+                read + 1,
+                std::memory_order_release
+            );
+
+            return true;
         }
     };
-
 
 
 /*
@@ -100,8 +134,11 @@ class ModelInferencer {
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES*NUM_HARMONICS*BUFFER_SIZE> audio_input_buffer;
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES> model_output_buffer;
         std::thread inferencing_thread;
-        //bool stop_thread;
+
         std::atomic<bool> stop_thread{false};
+         sem_t input_ready{};
+         bool semaphore_initialized = false;
+
         /** Runs model inference on frames received by the input ring buffer. */
         void inferencing_loop(const std::string& bundle_path);
 
