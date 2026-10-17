@@ -1,0 +1,39 @@
+/* MOD-UI custom icon — the {{{cns}}} token isolates each plugin instance. */
+.gm-pedal{{{cns}}} { width:780px; height:280px; position:relative; box-sizing:border-box; border:1px solid #303947; border-top:3px solid #08c9a8; border-radius:12px; background:linear-gradient(145deg,#101723,#0d1017); color:#e2eaf5; font-family:Arial,Helvetica,sans-serif; box-shadow:0 12px 26px rgba(0,0,0,.4); }
+.gm-pedal{{{cns}}} .gm-handle {position:absolute;inset:0;z-index:20;cursor:move;}
+.gm-pedal{{{cns}}} .gm-head {position:absolute;left:21px;right:23px;top:13px;height:50px;pointer-events:none;}
+.gm-pedal{{{cns}}} .gm-title {font-size:25px;font-weight:800;letter-spacing:1px;line-height:28px;}
+.gm-pedal{{{cns}}} .gm-title em {color:#08c9a8;font-style:normal;}
+.gm-pedal{{{cns}}} .gm-subtitle {color:#899bb5;font-size:11px;margin-top:2px;}
+.gm-pedal{{{cns}}} .gm-bars {position:absolute;right:0;top:1px;width:110px;}
+.gm-pedal{{{cns}}} .gm-bars i {display:block;height:2px;background:#364151;margin:6px 0;position:relative;}
+.gm-pedal{{{cns}}} .gm-bars i:before {content:'';position:absolute;width:6px;height:6px;top:-2px;left:30%;border-radius:50%;background:#08c9a8;}
+.gm-pedal{{{cns}}} .gm-bars i:nth-child(2):before {left:54%;background:#ff9e26;}
+.gm-pedal{{{cns}}} .gm-bars i:nth-child(3):before {left:75%;background:#48a6ff;}
+.gm-pedal{{{cns}}} .gm-panels {position:absolute;left:16px;right:16px;top:73px;height:180px;display:flex;gap:11px;}
+.gm-pedal{{{cns}}} .gm-panel {height:180px;box-sizing:border-box;border:1px solid #303a4a;border-radius:9px;background:linear-gradient(160deg,#1c2330,#171b25);padding:12px 8px;}
+.gm-pedal{{{cns}}} .gm-input {flex:2;} .gm-pedal{{{cns}}} .gm-onset,.gm-pedal{{{cns}}} .gm-offset {flex:3;}
+.gm-pedal{{{cns}}} h3 {font-size:12px;line-height:16px;letter-spacing:.35px;margin:0 0 12px 2px;color:#e3e9f0;font-weight:700;padding-left:9px;border-left:4px solid #48a6ff;}
+.gm-pedal{{{cns}}} .gm-onset h3 {border-color:#08c9a8;} .gm-pedal{{{cns}}} .gm-offset h3 {border-color:#ff9e26;}
+.gm-pedal{{{cns}}} .gm-controls {display:flex;justify-content:space-around;gap:2px;}
+.gm-pedal{{{cns}}} .gm-control {flex:1;min-width:0;text-align:center;position:relative;z-index:30;}
+.gm-pedal{{{cns}}} .gm-label {font-size:10px;color:#d8e1ee;height:14px;white-space:nowrap;}
+.gm-pedal{{{cns}}} .gm-knob {width:78px;height:78px;margin:1px auto 0;background-repeat:no-repeat;cursor:ns-resize; background-position:0 0;}
+.gm-pedal{{{cns}}} .gm-knob.blue {background-image:url(/resources/knob-blue.png{{{ns}}});}
+.gm-pedal{{{cns}}} .gm-knob.teal {background-image:url(/resources/knob-teal.png{{{ns}}});}
+.gm-pedal{{{cns}}} .gm-knob.orange {background-image:url(/resources/knob-orange.png{{{ns}}});}
+.gm-pedal{{{cns}}} .gm-value {color:#9cadc6;font-size:11px;min-height:14px;margin-top:2px;}
+.gm-pedal{{{cns}}} .gm-io {position:absolute;top:148px;z-index:35;}
+.gm-pedal{{{cns}}} .gm-in {left:-11px;} .gm-pedal{{{cns}}} .gm-out {right:-11px;}
+/* MOD switch .on = bypassed. MOD bypass-light .on = LED lit (effect active). */
+.gm-pedal{{{cns}}} .gm-power-wrap {position:absolute;top:19px;right:154px;z-index:40;height:31px;display:flex;align-items:center;gap:7px;}
+.gm-pedal{{{cns}}} .gm-status-light {width:9px;height:9px;box-sizing:border-box;border-radius:50%;background:#0bd3aa;box-shadow:0 0 8px rgba(11,211,170,.65);pointer-events:none;flex-shrink:0;}
+.gm-pedal{{{cns}}} .gm-status-light.on {background:#0bd3aa;box-shadow:0 0 8px rgba(11,211,170,.65);}
+.gm-pedal{{{cns}}} .gm-status-light.off {background:#667080;box-shadow:none;}
+.gm-pedal{{{cns}}} .gm-power {box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:93px;height:29px;border-radius:7px;border:1px solid #138c7b;background:#12322f;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);cursor:pointer;user-select:none;}
+.gm-pedal{{{cns}}} .gm-power .gm-power-text:after {content:"ON";color:#4bedd0;font:bold 11px Arial,Helvetica,sans-serif;letter-spacing:1.5px;}
+.gm-pedal{{{cns}}} .gm-power.off {border-color:#138c7b;background:#12322f;}
+.gm-pedal{{{cns}}} .gm-power.on {border-color:#566073;background:#2a303c;}
+.gm-pedal{{{cns}}} .gm-power.on .gm-power-text:after {content:"BYPASS";color:#c2c9d4;letter-spacing:.7px;}
+.gm-pedal{{{cns}}} .gm-power:hover {filter:brightness(1.18);}
+.gm-pedal{{{cns}}} .gm-footer {position:absolute;bottom:7px;text-align:center;width:100%;font-size:9px;color:#657a95;pointer-events:none;}
