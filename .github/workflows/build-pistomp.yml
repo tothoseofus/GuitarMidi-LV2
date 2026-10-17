@@ -121,6 +121,30 @@ jobs:
         ninja
         ninja install
 
+    
+    - name: Add MOD GUI to LV2 Bundle
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        BUNDLE="install_dist/guitarmidi.lv2"
+        GUI_SOURCE="hardware/moddevices/gui"
+
+        # Verify that the bundle and MOD manifest exist
+        test -d "$BUNDLE"
+        test -f "$GUI_SOURCE/manifest.ttl"
+
+        # Copy all GUI files into the installed bundle
+        # This overwrites the original manifest.ttl
+        cp -av "$GUI_SOURCE/." "$BUNDLE/"
+
+        # Verify that the MOD manifest replaced the original
+        cmp "$GUI_SOURCE/manifest.ttl" "$BUNDLE/manifest.ttl"
+
+        echo "Final LV2 bundle contents:"
+        find "$BUNDLE" -type f | sort
+
+
     - name: Package Bundle
       run: |
         cd install_dist
