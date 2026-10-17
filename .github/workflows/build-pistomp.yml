@@ -1,8 +1,6 @@
 name: Build GuitarMidi for piStomp v3
 
 on:
-  push:
-    branches: [ "master", "main" ]
   workflow_dispatch:
 
 jobs:
