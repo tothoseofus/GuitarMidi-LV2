@@ -5,12 +5,6 @@
     #include <semaphore.h>
     #include <filesystem>
         // TFlite C++ API reference: https://ai.google.dev/edge/api/tflite/cc?hl=en
-    #define TFLITE_MINIMAL_CHECK(x)                                  \
-        if (!(x))                                                    \
-        {                                                            \
-            fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
-            exit(1);                                                 \
-        }
 
 
     void GuitarMidi::ModelInferencer::inferencing_loop(
@@ -84,11 +78,27 @@
                 return false;
             }
             m_model = FlatBufferModel::BuildFromFile(tflite_path.c_str());
-            TFLITE_MINIMAL_CHECK(m_model != nullptr);
+
+            if (!m_model) {
+                g_logger.error(
+                    "Failed to load TensorFlow Lite model.\n"
+                );
+                return false;
+            }
+        
             ops::builtin::BuiltinOpResolver resolver;
+
             InterpreterBuilder builder(*m_model, resolver);
 
-            builder(&m_interpreter);
+            if (builder(&m_interpreter) != kTfLiteOk ||
+                !m_interpreter)
+            {
+                g_logger.error(
+                    "Failed to create TensorFlow Lite interpreter.\n"
+                );
+                return false;
+            }
+        
             TfLiteXNNPackDelegateOptions xnnpack_options =
                 TfLiteXNNPackDelegateOptionsDefault();
             xnnpack_options.num_threads = NUM_INFERENCE_THREADS; // Set number of threads as appropriate for your
@@ -96,16 +106,32 @@
             xnnpack_options.weight_cache_file_path = TfLiteXNNPackDelegateInMemoryFilePath();
             // xnnpack_options.logging_level = TFLITE_XNNPACK_LOGGING_LEVEL_ERROR;
 
-            if (m_interpreter->ModifyGraphWithDelegate(
-                    TfLiteXNNPackDelegateCreate(&xnnpack_options)) != kTfLiteOk)
-            {
-                // Handle error, but usually optional
-                //lv2_log_error(&g_logger, "Failed to apply XNNPack delegate\n"); 
-                g_logger.error( "Failed to apply XNNPack delegate\n");
+            // Create and retain the XNNPACK delegate.
+            m_xnnpack_delegate =
+                TfLiteXNNPackDelegateCreate(&xnnpack_options);
+
+            if (!m_xnnpack_delegate) {
+                g_logger.error("Failed to create XNNPACK delegate.\n");
                 return false;
             }
+
+            // Attach the delegate to the interpreter.
+            if (m_interpreter->ModifyGraphWithDelegate(
+                    m_xnnpack_delegate) != kTfLiteOk)
+            {
+                g_logger.error("Failed to apply XNNPACK delegate.\n");
+                return false;
+            }
+        
             // Allocate tensor buffers.
-            TFLITE_MINIMAL_CHECK(m_interpreter->AllocateTensors() == kTfLiteOk);
+
+            if (m_interpreter->AllocateTensors() != kTfLiteOk) {
+                g_logger.error(
+                    "Failed to allocate TensorFlow Lite tensors.\n"
+                );
+                return false;
+            }
+        
             printf("=== Pre-invoke Interpreter State ===\n");
             // tflite::PrintInterpreterState(m_interpreter.get());
             tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
@@ -146,10 +172,6 @@
 
     GuitarMidi::ModelInferencer::ModelInferencer()
     {
-        stop_thread.store(false);
-
-        m_interpreter = nullptr;
-
         semaphore_initialized =
             (sem_init(&input_ready, 0, 0) == 0);
 
@@ -165,20 +187,32 @@
 
     GuitarMidi::ModelInferencer::~ModelInferencer()
     {
-        stop_thread.store(
-            true,
-            std::memory_order_release
-        );
+        // Request inference thread shutdown.
+        stop_thread.store(true, std::memory_order_release);
 
+        // Wake the thread if it is waiting for input.
         if (semaphore_initialized) {
-            // Wake the thread if it is sleeping.
             sem_post(&input_ready);
         }
 
+        // Wait until inference has completely stopped.
         if (inferencing_thread.joinable()) {
             inferencing_thread.join();
         }
 
+        // The interpreter must be destroyed before the delegate.
+        m_interpreter.reset();
+
+        // Release XNNPACK resources.
+        if (m_xnnpack_delegate) {
+            TfLiteXNNPackDelegateDelete(m_xnnpack_delegate);
+            m_xnnpack_delegate = nullptr;
+        }
+
+        // Release the model after the interpreter.
+        m_model.reset();
+
+        // Finally destroy the input notification semaphore.
         if (semaphore_initialized) {
             sem_destroy(&input_ready);
         }
