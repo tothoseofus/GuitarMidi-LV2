@@ -10,74 +10,40 @@
             exit(1);                                                 \
         }
 
-/*    void GuitarMidi::ModelInferencer::inferencing_loop(const std::string& bundle_path)
+
+    void GuitarMidi::ModelInferencer::inferencing_loop(const std::string& bundle_path)
     {
         if (!initialize_interpreter(bundle_path)) {
-            //lv2_log_error(&g_logger, "Failed to initialize interpreter.\n");
             g_logger.error("Failed to initialize interpreter.\n");
             m_initialization_promise.set_value(false);
             return;
         }
+
         m_initialization_promise.set_value(true);
+
         while (!stop_thread) {
-            // std::unique_lock<std::mutex> lock(buffer_mutex);
-            // buffer_cv.wait(lock, [this] { return stop_thread || audio_input_buffer.has_new_data(); });
-            if (stop_thread) break;
+    
+            if (!audio_input_buffer.has_new_data() || !m_interpreter) {
+                // Avoid busy-waiting while waiting for audio.
+                std::this_thread::sleep_for(
+                    std::chrono::microseconds(100));
+                continue;
+            }
 
+            float* input_buffer =
+                m_interpreter->typed_input_tensor<float>(0);
 
+            audio_input_buffer.get_latest_data(input_buffer);
 
-        if (audio_input_buffer.has_new_data() && m_interpreter) {
-                float* input_buffer=m_interpreter->typed_input_tensor<float>(0);
-                audio_input_buffer.get_latest_data(input_buffer); // Assuming 1 frame of input
-                TFLITE_MINIMAL_CHECK(m_interpreter->Invoke() == kTfLiteOk);
+            TFLITE_MINIMAL_CHECK(
+                m_interpreter->Invoke() == kTfLiteOk);
 
-                TfLiteTensor *output = m_interpreter->output_tensor(0);
-                float* output_data=m_interpreter->typed_output_tensor<float>(0);
-                // print the output dims
-                TfLiteIntArray* output_dims = output->dims;
+            float* output_data =
+                m_interpreter->typed_output_tensor<float>(0);
 
-                    // Add the model output to the model output ring buffer
-                    model_output_buffer.add_data(output_data); // Assuming 1 frame of output
-                }
-
-
+            model_output_buffer.add_data(output_data);
         }
-    }*/
-
-
-void GuitarMidi::ModelInferencer::inferencing_loop(const std::string& bundle_path)
-{
-    if (!initialize_interpreter(bundle_path)) {
-        g_logger.error("Failed to initialize interpreter.\n");
-        m_initialization_promise.set_value(false);
-        return;
     }
-
-    m_initialization_promise.set_value(true);
-
-    while (!stop_thread) {
-
-        if (!audio_input_buffer.has_new_data() || !m_interpreter) {
-            // Avoid busy-waiting while waiting for audio.
-            std::this_thread::sleep_for(
-                std::chrono::microseconds(100));
-            continue;
-        }
-
-        float* input_buffer =
-            m_interpreter->typed_input_tensor<float>(0);
-
-        audio_input_buffer.get_latest_data(input_buffer);
-
-        TFLITE_MINIMAL_CHECK(
-            m_interpreter->Invoke() == kTfLiteOk);
-
-        float* output_data =
-            m_interpreter->typed_output_tensor<float>(0);
-
-        model_output_buffer.add_data(output_data);
-    }
-}
 
     bool GuitarMidi::ModelInferencer::initialize_interpreter(const std::string &bundle_path)
     {
