@@ -18,7 +18,6 @@
 
         while (!stop_thread.load(std::memory_order_acquire)) {
 
-            // Sleep until an input frame is available.
             // Wait until an input frame is available.
             const bool notified = input_ready.wait();
 
