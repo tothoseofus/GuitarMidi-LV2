@@ -157,7 +157,7 @@
         "request": "launch",
         "program": "/usr/bin/jalv.gtk",
         "args": [
-            "http://github.com/geraldmwangi/GuitarMidi-LV2"
+            "http://github.com/geraldmwangi/GuitarMidi-LV2-legacy"
         ],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}",
