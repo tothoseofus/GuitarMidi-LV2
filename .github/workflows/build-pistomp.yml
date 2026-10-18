@@ -152,8 +152,9 @@ jobs:
         cd install_dist
         zip -r guitarmidi-legacy-pistomp.zip guitarmidi-legacy.lv2
 
-    - name: Upload Artifact
+    - name: Upload Legacy Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: guitarmidi-pistomp-lv2
-        path: install_dist/guitarmidi-pistomp.zip
+        name: guitarmidi-legacy-pistomp-lv2
+        path: install_dist/guitarmidi-legacy-pistomp.zip
+        if-no-files-found: error
