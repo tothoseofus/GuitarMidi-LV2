@@ -1,7 +1,7 @@
 @prefix modgui: <http://moddevices.com/ns/modgui#> .
 @prefix lv2: <http://lv2plug.in/ns/lv2core#> .
 
-<http://github.com/geraldmwangi/GuitarMidi-LV2>
+<http://github.com/geraldmwangi/GuitarMidi-LV2-legacy>
     modgui:gui [
         modgui:resourcesDirectory <modgui> ;
         modgui:iconTemplate <modgui/icon-guitarmidi.html> ;
