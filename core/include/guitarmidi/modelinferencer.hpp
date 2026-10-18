@@ -23,7 +23,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <cstring>
-#include <semaphore.h>
+#include <guitarmidi/inferencenotification.hpp>
 #include <guitarmidi/common.hpp>
 #include <tensorflow/lite/version.h>
 #include "tensorflow/core/public/release_version.h"
@@ -140,8 +140,8 @@ class ModelInferencer {
         std::thread inferencing_thread;
 
         std::atomic<bool> stop_thread{false};
-         sem_t input_ready{};
-         bool semaphore_initialized = false;
+
+        InferenceNotification input_ready;
 
         /** Runs model inference on frames received by the input ring buffer. */
         void inferencing_loop(const std::string& bundle_path);
