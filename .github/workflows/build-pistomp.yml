@@ -147,6 +147,22 @@ jobs:
         mv install_dist/guitarmidi.lv2 \
            install_dist/guitarmidi-legacy.lv2
 
+    - name: Verify Legacy Plugin Identity
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        BUNDLE="install_dist/guitarmidi-legacy.lv2"
+
+        test -f "$BUNDLE/guitarmidi.so"
+        test -f "$BUNDLE/manifest.ttl"
+        test -f "$BUNDLE/guitarmidi.ttl"
+
+        grep -qF 'GuitarMidi-LV2-legacy' "$BUNDLE/manifest.ttl"
+        grep -qF 'GuitarMidi-LV2-legacy' "$BUNDLE/guitarmidi.ttl"
+
+        echo "Legacy LV2 metadata verified."
+
     - name: Package Bundle
       run: |
         cd install_dist
