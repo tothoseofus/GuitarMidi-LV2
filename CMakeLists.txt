@@ -10,9 +10,14 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # specify the C++ standard
-option(BUILD_ANALYSIS_APP "Build analysis app, usefull for development" OFF)
-option(BUILD_UI "Build the X11/Cairo plugin UI" ON)
 
+option(BUILD_ANALYSIS_APP "Build analysis app, useful for development" OFF)
+
+if(WIN32)
+    option(BUILD_UI "Build the X11/Cairo plugin UI" OFF)
+else()
+    option(BUILD_UI "Build the X11/Cairo plugin UI" ON)
+endif()
 
 
 
@@ -23,23 +28,26 @@ message("Tensorflow found at ${TENSORFLOW_SOURCE_DIR}")
 add_subdirectory(core)
 add_subdirectory(src)
 
-if(${BUILD_UI})
-add_subdirectory(ui)
+if(BUILD_UI)
+    add_subdirectory(ui)
 endif()
 
-if(${BUILD_ANALYSIS_APP})
-add_subdirectory(AnalysisApp)
+if(BUILD_ANALYSIS_APP)
+    add_subdirectory(AnalysisApp)
 endif()
 
 
+# Debian packaging (Linux only)
+if(WIN32)
+    option(BUILD_DEB "Build Debian package" OFF)
+else()
+    option(BUILD_DEB "Build Debian package" ON)
+endif()
 
-#Debian packaging
-option(BUILD_DEB "Build debian package" ON)
 if(BUILD_DEB)
-	include(setversionfromgit)
-
-	setversionfromgit()
-	include(debian)
+    include(setversionfromgit)
+    setversionfromgit()
+    include(debian)
 endif()
 
 
