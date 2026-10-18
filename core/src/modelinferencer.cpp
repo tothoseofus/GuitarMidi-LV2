@@ -25,8 +25,8 @@
     
             if (!audio_input_buffer.has_new_data() || !m_interpreter) {
                 // Avoid busy-waiting while waiting for audio.
-                std::this_thread::sleep_for(
-                    std::chrono::microseconds(100));
+  //              std::this_thread::sleep_for(
+  //                  std::chrono::microseconds(100));
                 continue;
             }
 
