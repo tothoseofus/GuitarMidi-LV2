@@ -72,7 +72,7 @@ struct GuitarMidiPlugin
 	uint64_t debug_update_interval_samples = 2400;
 };
 
-#define GUITARMIDI_URI "http://github.com/geraldmwangi/GuitarMidi-LV2"
+#define GUITARMIDI_URI "http://github.com/geraldmwangi/GuitarMidi-LV2-legacy"
 
 // define URIDS options to get the buffer size and sample rate from the host
 typedef struct
