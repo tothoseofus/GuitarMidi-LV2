@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/Test-Windows-port
+      - Test-Windows-port
 
 jobs:
   test-zita-windows:
