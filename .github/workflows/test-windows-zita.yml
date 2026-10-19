@@ -21,7 +21,8 @@ jobs:
           arch: amd64
 
 
-      - name: Download Zita-Resampler
+
+      - name: Download and Extract Zita-Resampler
         shell: pwsh
         timeout-minutes: 5
         run: |
@@ -29,42 +30,48 @@ jobs:
 
           $url = "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz"
 
-          Write-Host "Downloading Zita-Resampler 1.11.2..."
-          Write-Host "URL: $url"
+          Write-Host "Downloading Zita-Resampler..."
 
-          # Use the native curl executable, not the
-          # PowerShell curl alias.
           curl.exe --fail --location `
             --connect-timeout 15 `
             --max-time 90 `
             --retry 2 `
             --show-error `
-            --progress-bar `
             --output zita.tar.xz `
             $url
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Zita-Resampler download failed"
+            throw "Download failed"
           }
-
-          Write-Host "Download completed."
 
           Get-Item zita.tar.xz |
             Select-Object Name, Length
 
-          Write-Host "Extracting archive..."
+          Write-Host "Extracting archive using Python..."
 
-          tar -xJf zita.tar.xz
+          @'
+          import tarfile
+          import time
+
+          start = time.monotonic()
+
+          with tarfile.open("zita.tar.xz", "r:xz") as archive:
+              members = archive.getmembers()
+              print(f"Archive contains {len(members)} entries", flush=True)
+              archive.extractall(path=".", filter="data")
+
+          print(f"Extraction completed in {time.monotonic() - start:.2f} seconds", flush=True)
+          '@ | python -
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Failed to extract Zita-Resampler"
+            throw "Python extraction failed"
           }
-
-          Write-Host "Extraction completed."
 
           if (-not (Test-Path "zita-resampler-1.11.2/source/resampler.cc")) {
-            throw "Expected Zita-Resampler source files were not found"
+            throw "Zita-Resampler source files not found"
           }
+
+          Write-Host "Zita-Resampler source ready."
 
 
       - name: Compile Zita-Resampler with MSVC
