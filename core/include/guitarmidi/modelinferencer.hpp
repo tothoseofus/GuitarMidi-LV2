@@ -126,6 +126,16 @@ namespace GuitarMidi{
 
             return true;
         }
+
+        size_t queued_count() const noexcept {
+            const size_t write =
+                write_index.load(std::memory_order_acquire);
+
+            const size_t read =
+                read_index.load(std::memory_order_acquire);
+
+            return write - read;
+        }
     };
 
 
