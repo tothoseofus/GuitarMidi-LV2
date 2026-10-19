@@ -218,6 +218,13 @@
         g_logger.info("=== GuitarMidi Inference Diagnostics ===\n");
 
         g_logger.info(
+            "Input frames remaining at shutdown: %llu\n",
+            static_cast<unsigned long long>(
+                audio_input_buffer.queued_count()
+            )
+        );
+
+        g_logger.info(
             "Input frames accepted: %llu\n",
             static_cast<unsigned long long>(
                 input_frames_accepted.load(std::memory_order_relaxed))
