@@ -63,9 +63,6 @@ set(TF_VERSION_SUFFIX "")
 
 message("Building with Tensorflow version: ${TF_MAJOR}.${TF_MINOR}.${TF_PATCH}${TF_VERSION_SUFFIX}")
 
-set(TF_CXX_FLAGS "-DTF_MAJOR_VERSION=${TF_MAJOR} -DTF_MINOR_VERSION=${TF_MINOR} -DTF_PATCH_VERSION=${TF_PATCH} -DTF_VERSION_SUFFIX=\"${TF_VERSION_SUFFIX}\"")
-message("Setting TensorFlow compile flags: ${TF_CXX_FLAGS}")
-add_definitions(-DTF_MAJOR_VERSION=${TF_MAJOR} -DTF_MINOR_VERSION=${TF_MINOR} -DTF_PATCH_VERSION=${TF_PATCH} -DTF_VERSION_SUFFIX=\"${TF_VERSION_SUFFIX}\")
 
 # Provide compile-time definitions in the recommended CMake form (no leading -D).
 # This makes macros available globally; for target-specific definitions prefer
