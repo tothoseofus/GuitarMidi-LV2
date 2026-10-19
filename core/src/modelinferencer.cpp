@@ -38,20 +38,42 @@
                 m_interpreter->typed_input_tensor<float>(0);
 
             // Consume exactly one frame for this notification.
+ 
             if (!audio_input_buffer.get_latest_data(input_buffer)) {
+
+                empty_wakeups.fetch_add(
+                    1, std::memory_order_relaxed
+                );
+
                 continue;
             }
 
             if (m_interpreter->Invoke() != kTfLiteOk) {
+
+                inference_errors.fetch_add(
+                    1, std::memory_order_relaxed
+                );
+
                 g_logger.error("TensorFlow Lite inference failed.\n");
                 break;
-            }    
+            }
+
+            // Model inference completed successfully.
+            inferences_completed.fetch_add(
+                1, std::memory_order_relaxed
+            );
 
             float* output_data =
                 m_interpreter->typed_output_tensor<float>(0);
 
-            // A full output queue drops the new result.
-            model_output_buffer.add_data(output_data);
+            // Record output queue overflows.
+            if (!model_output_buffer.add_data(output_data)) {
+
+                output_frames_dropped.fetch_add(
+                    1, std::memory_order_relaxed
+                );
+            }
+
         }
     }
 
@@ -190,6 +212,63 @@
             inferencing_thread.join();
         }
 
+        
+        // The inference thread has stopped, so print
+        // a final summary of this plugin instance.
+        g_logger.info("=== GuitarMidi Inference Diagnostics ===\n");
+
+        g_logger.info(
+            "Input frames accepted: %llu\n",
+            static_cast<unsigned long long>(
+                input_frames_accepted.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Input frames dropped: %llu\n",
+            static_cast<unsigned long long>(
+                input_frames_dropped.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Maximum input queue depth: %llu / %llu\n",
+            static_cast<unsigned long long>(
+                max_input_queue_depth.load(std::memory_order_relaxed)),
+            static_cast<unsigned long long>(RING_BUFFER_SIZE)
+        );
+
+        g_logger.info(
+            "Inferences completed: %llu\n",
+            static_cast<unsigned long long>(
+                inferences_completed.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Output frames dropped: %llu\n",
+            static_cast<unsigned long long>(
+                output_frames_dropped.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Notification failures: %llu\n",
+            static_cast<unsigned long long>(
+                notification_failures.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Empty wake-ups: %llu\n",
+            static_cast<unsigned long long>(
+                empty_wakeups.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Inference errors: %llu\n",
+            static_cast<unsigned long long>(
+                inference_errors.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info("====================================\n");
+
+
         // Destroy interpreter before the XNNPACK delegate.
         m_interpreter.reset();
 
@@ -204,6 +283,7 @@
         // after this destructor finishes.
     }
 
+
     void GuitarMidi::ModelInferencer::add_audio_input(
         const float* input,
         int num_frames)
@@ -213,17 +293,44 @@
             return;
         }
 
-        // Publish the new frame into the SPSC buffer.
-        if (audio_input_buffer.add_data(input)) {
-    
-            // Signal the inference thread.
-            // Does not wait for inference to complete.
-            input_ready.notify();
-        }
+        size_t queue_depth = 0;
 
-        // If the ring buffer is full, the incoming
-        // frame is dropped and no notification is sent.
+        if (audio_input_buffer.add_data(input, &queue_depth)) {
+
+            input_frames_accepted.fetch_add(
+                1, std::memory_order_relaxed
+            );
+
+            // Update the observed queue high-water mark.
+            size_t previous_max =
+                max_input_queue_depth.load(
+                    std::memory_order_relaxed
+                );
+
+            while (queue_depth > previous_max &&
+                   !max_input_queue_depth.compare_exchange_weak(
+                       previous_max,
+                       queue_depth,
+                       std::memory_order_relaxed,
+                       std::memory_order_relaxed))
+            {
+                // Retry only if the observed maximum changed.
+            }
+
+            if (!input_ready.notify()) {
+                notification_failures.fetch_add(
+                    1, std::memory_order_relaxed
+                );
+            }
+
+        } else {
+
+            input_frames_dropped.fetch_add(
+                1, std::memory_order_relaxed
+            );
+        }
     }
+
 
     bool GuitarMidi::ModelInferencer::get_model_output(
         float* output,
