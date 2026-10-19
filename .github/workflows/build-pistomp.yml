@@ -149,7 +149,7 @@ jobs:
         zip -r guitarmidi-pistomp.zip guitarmidi.lv2
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: guitarmidi-pistomp-lv2
         path: install_dist/guitarmidi-pistomp.zip
