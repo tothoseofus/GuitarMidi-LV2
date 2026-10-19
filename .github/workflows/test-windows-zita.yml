@@ -1,0 +1,72 @@
+
+name: Test Windows Zita-Resampler
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-zita-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Download Zita-Resampler
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $url = "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz"
+
+          Invoke-WebRequest `
+            -Uri $url `
+            -OutFile zita.tar.xz
+
+          tar -xJf zita.tar.xz
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to extract Zita-Resampler"
+          }
+
+      - name: Compile Zita-Resampler with MSVC
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Set-Location zita-resampler-1.11.2/source
+
+          cl /nologo /EHsc /O2 /c `
+            resampler.cc `
+            resampler-table.cc `
+            cresampler.cc `
+            vresampler.cc
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Zita-Resampler compilation failed"
+          }
+
+          lib /nologo `
+            /OUT:zita-resampler.lib `
+            resampler.obj `
+            resampler-table.obj `
+            cresampler.obj `
+            vresampler.obj
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Zita-Resampler library creation failed"
+          }
+
+          Get-Item zita-resampler.lib
+
+      - name: Upload Zita Library
+        uses: actions/upload-artifact@v6
+        with:
+          name: zita-resampler-windows-x64
+          path: zita-resampler-1.11.2/source/zita-resampler.lib
+          if-no-files-found: error
