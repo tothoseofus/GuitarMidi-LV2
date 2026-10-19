@@ -61,7 +61,11 @@ namespace GuitarMidi{
     public:
         // Called only by the producer.
         // Returns false if the buffer is full.
-        bool add_data(const float* data) {
+
+        bool add_data(
+            const float* data,
+            size_t* queued_after = nullptr)
+        {
             const size_t write =
                 write_index.load(std::memory_order_relaxed);
 
@@ -83,8 +87,13 @@ namespace GuitarMidi{
                 std::memory_order_release
             );
 
+            if (queued_after != nullptr) {
+                *queued_after = write + 1 - read;
+            }
+
             return true;
         }
+
 
         bool has_new_data() const {
             return write_index.load(std::memory_order_acquire) !=
