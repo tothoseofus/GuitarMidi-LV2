@@ -3,6 +3,9 @@ name: Test Windows Zita-Resampler
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/Test-Windows-port
 
 jobs:
   test-zita-windows:
