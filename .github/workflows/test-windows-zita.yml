@@ -20,22 +20,52 @@ jobs:
         with:
           arch: amd64
 
+
       - name: Download Zita-Resampler
         shell: pwsh
+        timeout-minutes: 5
         run: |
           $ErrorActionPreference = "Stop"
 
           $url = "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz"
 
-          Invoke-WebRequest `
-            -Uri $url `
-            -OutFile zita.tar.xz
+          Write-Host "Downloading Zita-Resampler 1.11.2..."
+          Write-Host "URL: $url"
+
+          # Use the native curl executable, not the
+          # PowerShell curl alias.
+          curl.exe --fail --location `
+            --connect-timeout 15 `
+            --max-time 90 `
+            --retry 2 `
+            --show-error `
+            --progress-bar `
+            --output zita.tar.xz `
+            $url
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Zita-Resampler download failed"
+          }
+
+          Write-Host "Download completed."
+
+          Get-Item zita.tar.xz |
+            Select-Object Name, Length
+
+          Write-Host "Extracting archive..."
 
           tar -xJf zita.tar.xz
 
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to extract Zita-Resampler"
           }
+
+          Write-Host "Extraction completed."
+
+          if (-not (Test-Path "zita-resampler-1.11.2/source/resampler.cc")) {
+            throw "Expected Zita-Resampler source files were not found"
+          }
+
 
       - name: Compile Zita-Resampler with MSVC
         shell: pwsh
