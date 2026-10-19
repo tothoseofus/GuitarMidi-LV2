@@ -20,13 +20,24 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# Platform-specific Zita-Resampler library
+
 set(ZITA_RESAMPLER_INCLUDE_DIR
     "${CMAKE_SOURCE_DIR}/deps/include"
-    CACHE PATH "zita-resampler include directory")
+    CACHE PATH "zita-resampler include directory"
+)
 
-set(ZITA_RESAMPLER_LIB
-    "${CMAKE_SOURCE_DIR}/deps/lib/libzita-resampler.a"
-    CACHE FILEPATH "zita-resampler static library")
+if(WIN32)
+    set(ZITA_RESAMPLER_LIB
+        "${CMAKE_SOURCE_DIR}/deps/lib/zita-resampler.lib"
+        CACHE FILEPATH "zita-resampler static library"
+    )
+else()
+    set(ZITA_RESAMPLER_LIB
+        "${CMAKE_SOURCE_DIR}/deps/lib/libzita-resampler.a"
+        CACHE FILEPATH "zita-resampler static library"
+    )
+endif()
 
 if(NOT EXISTS "${ZITA_RESAMPLER_LIB}")
     message(FATAL_ERROR

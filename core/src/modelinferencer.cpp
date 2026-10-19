@@ -1,8 +1,6 @@
     #include <guitarmidi/modelinferencer.hpp>
     #include <iostream>
     #include <tensorflow/lite/logger.h>
-    #include <cerrno>
-    #include <semaphore.h>
     #include <filesystem>
         // TFlite C++ API reference: https://ai.google.dev/edge/api/tflite/cc?hl=en
 
@@ -20,23 +18,15 @@
 
         while (!stop_thread.load(std::memory_order_acquire)) {
 
-            // Sleep until an input frame is available.
-            int result;
-
-            do {
-                result = sem_wait(&input_ready);
-            } while (
-                result == -1 &&
-                errno == EINTR &&
-                !stop_thread.load(std::memory_order_acquire)
-            );
+            // Wait until an input frame is available.
+            const bool notified = input_ready.wait();
 
             if (stop_thread.load(std::memory_order_acquire)) {
                 break;
             }
 
-            if (result == -1) {
-                g_logger.error("Inference semaphore wait failed.\n");
+            if (!notified) {
+                g_logger.error("Inference notification wait failed.\n");
                 break;
             }
 
@@ -148,7 +138,7 @@
         bool GuitarMidi::ModelInferencer::initialize(
             const std::string& bundle_path)
     {
-        if (!semaphore_initialized) {
+        if (!input_ready.valid()) {
             return false;
         }
 
@@ -172,11 +162,10 @@
 
     GuitarMidi::ModelInferencer::ModelInferencer()
     {
-        semaphore_initialized =
-            (sem_init(&input_ready, 0, 0) == 0);
-
-        if (!semaphore_initialized) {
-            g_logger.error("Failed to initialise inference semaphore.\n");
+        if (!input_ready.valid()) {
+            g_logger.error(
+                "Failed to initialise inference notification.\n"
+            );
         }
 
         g_logger.info(
@@ -188,54 +177,52 @@
     GuitarMidi::ModelInferencer::~ModelInferencer()
     {
         // Request inference thread shutdown.
-        stop_thread.store(true, std::memory_order_release);
+        stop_thread.store(
+            true,
+            std::memory_order_release
+        );
 
         // Wake the thread if it is waiting for input.
-        if (semaphore_initialized) {
-            sem_post(&input_ready);
-        }
+        input_ready.notify();
 
-        // Wait until inference has completely stopped.
+        // Wait for inference and its use of XNNPACK to finish.
         if (inferencing_thread.joinable()) {
             inferencing_thread.join();
         }
 
-        // The interpreter must be destroyed before the delegate.
+        // Destroy interpreter before the XNNPACK delegate.
         m_interpreter.reset();
 
-        // Release XNNPACK resources.
         if (m_xnnpack_delegate) {
             TfLiteXNNPackDelegateDelete(m_xnnpack_delegate);
             m_xnnpack_delegate = nullptr;
         }
 
-        // Release the model after the interpreter.
         m_model.reset();
 
-        // Finally destroy the input notification semaphore.
-        if (semaphore_initialized) {
-            sem_destroy(&input_ready);
-        }
+        // The notification is destroyed automatically
+        // after this destructor finishes.
     }
 
     void GuitarMidi::ModelInferencer::add_audio_input(
         const float* input,
         int num_frames)
     {
-        if (!semaphore_initialized ||
+        if (!input_ready.valid() ||
             stop_thread.load(std::memory_order_relaxed)) {
             return;
         }
 
-        // Publish the frame without blocking the audio thread.
+        // Publish the new frame into the SPSC buffer.
         if (audio_input_buffer.add_data(input)) {
-
-            // Wake the inference thread.
-            sem_post(&input_ready);
+    
+            // Signal the inference thread.
+            // Does not wait for inference to complete.
+            input_ready.notify();
         }
 
-        // If full, drop this new frame.
-        // Do not signal because nothing was queued.
+        // If the ring buffer is full, the incoming
+        // frame is dropped and no notification is sent.
     }
 
     bool GuitarMidi::ModelInferencer::get_model_output(

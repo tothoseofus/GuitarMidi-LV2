@@ -1,46 +1,94 @@
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(${PROJECT_BINARY_DIR}/core/include)
-
+include_directories(${CMAKE_BINARY_DIR}/core/include)
 include_directories(include)
-include_directories(${PROJECT_SOURCE_DIR}/core/include)
+include_directories(${CMAKE_SOURCE_DIR}/core/include)
 
-#find_package(OpenMP REQUIRED)
-# pkg_check_modules(Pango REQUIRED pango)
+# Plugin source files
+set(SRC
+    guitarmidi.cpp
+    midioutput.cpp
+    lv2logger.cpp
+)
 
-# add_subdirectory(tflite_custom_op_example)
-
-# Read TF_VERSION file to get TensorFlow version
-
-
-
-
-
-
-set(SRC guitarmidi.cpp midioutput.cpp lv2logger.cpp )
-
+# Build the LV2 plugin
 add_library(guitarmidi SHARED ${SRC})
 
+target_link_libraries(guitarmidi PUBLIC
+    guitarmidi_core
+)
 
-target_link_libraries(guitarmidi PUBLIC guitarmidi_core )
+# Produce guitarmidi.so on Linux and guitarmidi.dll on Windows
+set_target_properties(guitarmidi PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "guitarmidi"
+)
 
-
-
-
-
-
+# Install the plugin binary into the LV2 bundle.
+# RUNTIME is required for Windows DLLs.
+# LIBRARY is required for Linux shared libraries.
 install(TARGETS guitarmidi
-        DESTINATION guitarmidi.lv2)
+    RUNTIME DESTINATION guitarmidi.lv2
+    LIBRARY DESTINATION guitarmidi.lv2
+)
 
+# Select the appropriate plugin description.
 if(WITH_AUDIO_OUTPUT)
-#rename ../guitarmidi-audiooutput.ttl to /tmp/guitarmidi.ttl then copy to the install directory, this is a workaround to avoid having to maintain two separate ttl files with only minor differences 
-file(REMOVE  /tmp/guitarmidi.ttl)
-file(COPY_FILE ../guitarmidi-audiooutput.ttl /tmp/guitarmidi.ttl)
-
-install(FILES ../manifest.ttl /tmp/guitarmidi.ttl ../python/neuralnetmodelling/guitarmidi.tflite
-        DESTINATION guitarmidi.lv2)
+    set(PLUGIN_TTL_SOURCE
+        "${CMAKE_SOURCE_DIR}/guitarmidi-audiooutput.ttl"
+    )
 else()
-install(FILES ../manifest.ttl ../guitarmidi.ttl ../python/neuralnetmodelling/guitarmidi.tflite
-        DESTINATION guitarmidi.lv2)
+    set(PLUGIN_TTL_SOURCE
+        "${CMAKE_SOURCE_DIR}/guitarmidi.ttl"
+    )
 endif()
+
+# Copy selected description under the standard name.
+configure_file(
+    "${PLUGIN_TTL_SOURCE}"
+    "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
+    COPYONLY
+)
+
+# Prepare the platform-specific manifest.
+if(WIN32)
+    file(READ
+        "${CMAKE_SOURCE_DIR}/manifest.ttl"
+        MANIFEST_CONTENT
+    )
+
+    # Ensure that the manifest contains the expected binary.
+    if(NOT MANIFEST_CONTENT MATCHES "guitarmidi[.]so")
+        message(FATAL_ERROR
+            "Expected guitarmidi.so in manifest.ttl"
+        )
+    endif()
+
+    string(REPLACE
+        "guitarmidi.so"
+        "guitarmidi.dll"
+        MANIFEST_CONTENT
+        "${MANIFEST_CONTENT}"
+    )
+
+    file(WRITE
+        "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
+        "${MANIFEST_CONTENT}"
+    )
+else()
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/manifest.ttl"
+        "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
+        COPYONLY
+    )
+endif()
+
+# Install metadata and trained TensorFlow Lite model.
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
+    "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
+    "${CMAKE_SOURCE_DIR}/python/neuralnetmodelling/guitarmidi.tflite"
+    DESTINATION guitarmidi.lv2
+)
