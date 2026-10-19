@@ -19,8 +19,7 @@
  */
 #include <thread>
 #include <future>
-//#include <mutex>
-//#include <condition_variable>
+#include <cstdint>
 #include <atomic>
 #include <cstring>
 #include <guitarmidi/inferencenotification.hpp>
@@ -142,6 +141,22 @@ class ModelInferencer {
         std::atomic<bool> stop_thread{false};
 
         InferenceNotification input_ready;
+
+
+        // Diagnostics: relaxed atomics keep audio-thread
+        // updates lightweight and thread-safe.
+        std::atomic<uint64_t> input_frames_accepted{0};
+        std::atomic<uint64_t> input_frames_dropped{0};
+        std::atomic<uint64_t> inferences_completed{0};
+        std::atomic<uint64_t> output_frames_dropped{0};
+        std::atomic<uint64_t> notification_failures{0};
+        std::atomic<uint64_t> empty_wakeups{0};
+        std::atomic<uint64_t> inference_errors{0};
+
+        // Highest input queue occupancy observed
+        // immediately after a successful enqueue.
+        std::atomic<size_t> max_input_queue_depth{0};
+
 
         /** Runs model inference on frames received by the input ring buffer. */
         void inferencing_loop(const std::string& bundle_path);
