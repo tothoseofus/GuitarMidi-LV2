@@ -144,13 +144,13 @@ namespace GuitarMidi
             {
                 int velocity = (int)(smoothed_noteenergies[i] / (gain * expressivity) * 127);
                 velocity = std::min(velocity, 127); // cap the velocity at 127
-                uint8_t midinote[3] = {0x90, i + NOTE_OFFSET, (uint8_t)velocity};
+                uint8_t midinote[3] = {0x90, static_cast<uint8_t>(i + NOTE_OFFSET), static_cast<uint8_t>(velocity)};
                 m_midioutput->sendMidiMessage(midinote, pos);
                 m_note_on[i] = true;
             }
             if (triggeroff[i])
             {
-                uint8_t midinote[3] = {0x90, i + NOTE_OFFSET, 0x00};
+                uint8_t midinote[3] = {0x90, static_cast<uint8_t>(i + NOTE_OFFSET), 0x00};
                 m_midioutput->sendMidiMessage(midinote, pos);
                 m_note_on[i] = false;
             }
