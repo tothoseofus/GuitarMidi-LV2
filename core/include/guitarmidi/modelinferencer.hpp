@@ -26,9 +26,6 @@
 #include <semaphore.h>
 #include <guitarmidi/common.hpp>
 #include <tensorflow/lite/version.h>
-#include "tensorflow/core/public/release_version.h"
-#include "tensorflow/core/public/version.h"
-#include "tensorflow/lite/version.h"
 #include "tensorflow/lite/core/interpreter_builder.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
