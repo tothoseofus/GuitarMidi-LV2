@@ -1,0 +1,176 @@
+
+name: Test Windows Zita-Resampler
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Test-Windows-port
+
+jobs:
+  test-zita-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+
+
+      - name: Download and Extract Zita-Resampler
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $url = "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz"
+
+          Write-Host "Downloading Zita-Resampler..."
+
+          curl.exe --fail --location `
+            --connect-timeout 15 `
+            --max-time 90 `
+            --retry 2 `
+            --show-error `
+            --output zita.tar.xz `
+            $url
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Download failed"
+          }
+
+          Get-Item zita.tar.xz |
+            Select-Object Name, Length
+
+          Write-Host "Extracting archive using Python..."
+
+          @'
+          import tarfile
+          import time
+
+          start = time.monotonic()
+
+          with tarfile.open("zita.tar.xz", "r:xz") as archive:
+              members = archive.getmembers()
+              print(f"Archive contains {len(members)} entries", flush=True)
+              archive.extractall(path=".", filter="data")
+
+          print(f"Extraction completed in {time.monotonic() - start:.2f} seconds", flush=True)
+          '@ | python -
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Python extraction failed"
+          }
+
+          if (-not (Test-Path "zita-resampler-1.11.2/source/resampler.cc")) {
+            throw "Zita-Resampler source files not found"
+          }
+
+          Write-Host "Zita-Resampler source ready."
+
+
+      - name: Compile Zita-Resampler with MSVC
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Set-Location zita-resampler-1.11.2/source
+
+          # Replace POSIX mutex with standard C++ mutex.
+          $header = "zita-resampler/resampler-table.h"
+          $content = Get-Content $header -Raw
+
+          $replacements = @(
+              @('#include <pthread.h>', '#include <mutex>'),
+              @('pthread_mutex_init\s*\(\s*&_mutex\s*,\s*0\s*\)\s*;', ''),
+              @('pthread_mutex_destroy\s*\(\s*&_mutex\s*\)\s*;', ''),
+              @('pthread_mutex_lock\s*\(\s*&_mutex\s*\)\s*;', '_mutex.lock();'),
+              @('pthread_mutex_unlock\s*\(\s*&_mutex\s*\)\s*;', '_mutex.unlock();'),
+              @('pthread_mutex_t\s+_mutex\s*;', 'std::mutex _mutex;')
+          )
+
+          foreach ($replacement in $replacements) {
+              if (-not [regex]::IsMatch($content, $replacement[0])) {
+                  throw "Expected mutex code not found: $($replacement[0])"
+              }
+
+              $content = [regex]::Replace(
+                  $content,
+                  $replacement[0],
+                  $replacement[1]
+              )
+          }
+
+          Set-Content -Path $header -Value $content
+
+          Write-Host "Compiling Zita-Resampler with MSVC..."
+
+          cl /nologo /EHsc /O2 /std:c++17 /MD `
+            /D_USE_MATH_DEFINES `
+            /I. /I.. `
+            /c `
+            resampler.cc `
+            resampler-table.cc `
+            cresampler.cc `
+            vresampler.cc
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Zita-Resampler compilation failed"
+          }
+
+          Write-Host "Creating static library..."
+
+          lib /nologo `
+            /OUT:zita-resampler.lib `
+            resampler.obj `
+            resampler-table.obj `
+            cresampler.obj `
+            vresampler.obj
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Zita-Resampler library creation failed"
+          }
+
+          Get-Item zita-resampler.lib
+
+
+      - name: Stage Zita-Resampler Dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $source = "zita-resampler-1.11.2/source"
+          $include = "deps/include/zita-resampler"
+          $libdir = "deps/lib"
+
+          New-Item -ItemType Directory -Force $include | Out-Null
+          New-Item -ItemType Directory -Force $libdir | Out-Null
+
+          Copy-Item "$source/zita-resampler.lib" "$libdir/"
+
+          $headers = @(
+            "resampler.h",
+            "resampler-table.h",
+            "cresampler.h",
+            "vresampler.h"
+          )
+
+          foreach ($header in $headers) {
+            Copy-Item "$source/zita-resampler/$header" "$include/"
+          }
+
+          Write-Host "Staged Windows Zita dependencies:"
+          Get-ChildItem deps -Recurse
+
+
+      - name: Upload Windows Zita Dependencies
+        uses: actions/upload-artifact@v6
+        with:
+          name: zita-resampler-windows-x64
+          path: deps/
+          if-no-files-found: error
