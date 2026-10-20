@@ -139,9 +139,39 @@ jobs:
           Get-Item zita-resampler.lib
 
 
-      - name: Upload Zita Library
+      - name: Stage Zita-Resampler Dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $source = "zita-resampler-1.11.2/source"
+          $include = "deps/include/zita-resampler"
+          $libdir = "deps/lib"
+
+          New-Item -ItemType Directory -Force $include | Out-Null
+          New-Item -ItemType Directory -Force $libdir | Out-Null
+
+          Copy-Item "$source/zita-resampler.lib" "$libdir/"
+
+          $headers = @(
+            "resampler.h",
+            "resampler-table.h",
+            "cresampler.h",
+            "vresampler.h"
+          )
+
+          foreach ($header in $headers) {
+            Copy-Item "$source/zita-resampler/$header" "$include/"
+          }
+
+          Write-Host "Staged Windows Zita dependencies:"
+          Get-ChildItem deps -Recurse
+
+
+      - name: Upload Windows Zita Dependencies
         uses: actions/upload-artifact@v6
         with:
           name: zita-resampler-windows-x64
-          path: zita-resampler-1.11.2/source/zita-resampler.lib
+          path: deps/
           if-no-files-found: error
+
