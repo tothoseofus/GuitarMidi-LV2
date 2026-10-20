@@ -111,6 +111,7 @@ jobs:
           Write-Host "Compiling Zita-Resampler with MSVC..."
 
           cl /nologo /EHsc /O2 /std:c++17 /MD `
+            /D_USE_MATH_DEFINES `
             /I. /I.. `
             /c `
             resampler.cc `
