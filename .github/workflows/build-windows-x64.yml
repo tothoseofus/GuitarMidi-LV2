@@ -1,5 +1,5 @@
 
-name: Test Windows Zita-Resampler
+name: build-windows-x64
 
 on:
   workflow_dispatch:
@@ -8,19 +8,19 @@ on:
       - Test-Windows-port
 
 jobs:
-  test-zita-windows:
+  build-windows-x64:
     runs-on: windows-2022
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository recursively
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Set up MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
-
-
 
       - name: Download and Extract Zita-Resampler
         shell: pwsh
@@ -168,9 +168,63 @@ jobs:
           Get-ChildItem deps -Recurse
 
 
-      - name: Upload Windows Zita Dependencies
+      - name: Prepare LV2 Headers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Downloading LV2 headers..."
+
+          git clone --depth 1 `
+            --branch v1.18.10 `
+            https://github.com/lv2/lv2.git `
+            lv2-source
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to download LV2 headers"
+          }
+
+          $lv2Include = Join-Path $env:GITHUB_WORKSPACE "deps/include"
+
+          New-Item -ItemType Directory `
+            -Force $lv2Include | Out-Null
+
+          Copy-Item `
+            -Path "lv2-source/lv2" `
+            -Destination $lv2Include `
+            -Recurse `
+            -Force
+
+          if (-not (Test-Path "$lv2Include/lv2/core/lv2.h")) {
+            throw "LV2 headers not found"
+          }
+
+          Write-Host "LV2 headers installed successfully."
+
+      - name: Verify Windows Dependencies
+        shell: pwsh
+        run: |
+          $required = @(
+            "deps/lib/zita-resampler.lib",
+            "deps/include/zita-resampler/resampler.h",
+            "deps/include/zita-resampler/resampler-table.h",
+            "deps/include/lv2/core/lv2.h"
+          )
+
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) {
+              throw "Missing dependency: $file"
+            }
+
+            Write-Host "OK: $file"
+          }
+
+          Write-Host "All Windows dependencies verified."
+
+
+      - name: Upload Windows Dependencies
         uses: actions/upload-artifact@v6
         with:
-          name: zita-resampler-windows-x64
+          name:  guitarmidi-windows-dependencies
           path: deps/
           if-no-files-found: error
