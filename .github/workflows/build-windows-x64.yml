@@ -253,6 +253,23 @@ jobs:
           Write-Host "Windows CMake configuration successful."
 
 
+      - name: Build GuitarMidi Windows x64
+        shell: pwsh
+        timeout-minutes: 60
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Building GuitarMidi for Windows x64..."
+
+          cmake --build build-windows --config Release --parallel 4
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows GuitarMidi build failed"
+          }
+
+          Write-Host "Windows GuitarMidi build completed."
+
+
       - name: Upload Windows Dependencies
         uses: actions/upload-artifact@v6
         with:
