@@ -184,13 +184,14 @@ jobs:
             throw "Failed to download LV2 headers"
           }
 
+          
           $lv2Include = Join-Path $env:GITHUB_WORKSPACE "deps/include"
 
           New-Item -ItemType Directory `
             -Force $lv2Include | Out-Null
 
           Copy-Item `
-            -Path "lv2-source/lv2" `
+            -Path "lv2-source/include/lv2" `
             -Destination $lv2Include `
             -Recurse `
             -Force
@@ -200,6 +201,7 @@ jobs:
           }
 
           Write-Host "LV2 headers installed successfully."
+
 
       - name: Verify Windows Dependencies
         shell: pwsh
