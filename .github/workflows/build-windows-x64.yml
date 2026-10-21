@@ -254,35 +254,6 @@ jobs:
           Write-Host "Added Tensor forward declaration for MSVC."
 
 
-      - name: Patch GuitarMidi uint Compatibility
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          $header = "core/include/guitarmidi/guitarnote.hpp"
-
-          if (-not (Test-Path $header)) {
-            throw "GuitarMidi header not found"
-          }
-
-          $content = Get-Content $header -Raw
-
-          $declaration = @'
-          #ifdef _WIN32
-          using uint = unsigned int;
-          #endif
-
-          '@
-
-          if ($content -match 'using uint\s*=') {
-            throw "uint compatibility declaration already exists"
-          }
-
-          $content = $declaration + $content
-
-          Set-Content -Path $header -Value $content
-
-          Write-Host "Added Windows uint compatibility declaration."
 
 
       - name: Configure GuitarMidi Windows x64
