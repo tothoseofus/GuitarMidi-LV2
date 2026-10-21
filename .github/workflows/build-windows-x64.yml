@@ -302,6 +302,31 @@ jobs:
           Write-Host "Windows GuitarMidi build completed."
 
 
+      - name: Package GuitarMidi Windows LV2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          cmake --install build-windows `
+            --config Release `
+            --prefix "$env:GITHUB_WORKSPACE/stage"
+
+          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi.lv2"
+
+          if (-not (Test-Path "$bundle/guitarmidi.dll")) {
+            throw "GuitarMidi DLL missing from LV2 bundle"
+          }
+
+          Get-ChildItem $bundle
+
+
+      - name: Upload Windows LV2 Bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: guitarmidi-windows-lv2
+          path: stage/guitarmidi.lv2/
+          if-no-files-found: error
+
       - name: Upload Windows Dependencies
         uses: actions/upload-artifact@v6
         with:
