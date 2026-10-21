@@ -224,6 +224,36 @@ jobs:
           Write-Host "All Windows dependencies verified."
 
 
+      - name: Patch TensorFlow Lite MSVC Compatibility
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $header = "ext/tensorflow/tensorflow/lite/core/model_building.h"
+          $content = Get-Content $header -Raw
+
+          $original = @'
+          class InterpreterInfo;
+          class Graph;
+          '@
+
+          $replacement = @'
+          class InterpreterInfo;
+          class Graph;
+          class Tensor;
+          '@
+
+          if (-not $content.Contains($original)) {
+            throw "Expected TensorFlow declarations not found"
+          }
+
+          $content = $content.Replace($original, $replacement)
+
+          Set-Content -Path $header -Value $content
+
+          Write-Host "Added Tensor forward declaration for MSVC."
+
+
       - name: Configure GuitarMidi Windows x64
         shell: pwsh
         timeout-minutes: 30
