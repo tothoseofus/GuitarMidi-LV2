@@ -18,6 +18,7 @@
  * Boston, MA  02110-1301  USA
  */
 #include <memory>
+#include <cstdint>
 #include <guitarmidi/fretboard_api.hpp>
 #include <guitarmidi/common.hpp>
 #include <guitarmidi/config.hpp>
@@ -62,6 +63,11 @@ namespace GuitarMidi{
         int64_t m_frames=0;
         //#endif
         bool m_note_on[NUM_NOTES]={false};
+
+        #ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
+        uint32_t m_diagnostic_counter = 0;
+        #endif
+
         public:
         /** Creates a note inferencer connected to the supplied MIDI output. */
         NoteInferencer(GuitarMidiOutput *midioutput);
