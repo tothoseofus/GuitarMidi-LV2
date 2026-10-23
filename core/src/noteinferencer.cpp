@@ -1,6 +1,37 @@
 #include <guitarmidi/noteinferencer.hpp>
 #include <iostream>
 #include <tensorflow/lite/logger.h>
+
+#ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+namespace
+{
+    void encodeConfidence(float confidence, uint8_t* dest)
+    {
+        // Clamp to the expected confidence range of 0 to 1.
+        const float clamped =
+            std::isfinite(confidence)
+                ? std::clamp(confidence, 0.0f, 1.0f)
+                : 0.0f;
+
+        // Convert to a 14-bit unsigned integer.
+        const uint16_t value =
+            static_cast<uint16_t>(
+                std::lround(clamped * 16383.0f));
+
+        // MIDI SysEx data bytes must be 7-bit.
+        dest[0] =
+            static_cast<uint8_t>(value & 0x7F);
+
+        dest[1] =
+            static_cast<uint8_t>((value >> 7) & 0x7F);
+    }
+}
+#endif
+
 namespace GuitarMidi
 {
 
