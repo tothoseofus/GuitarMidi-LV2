@@ -100,7 +100,10 @@ namespace GuitarMidi
 
         bool triggeron[NUM_NOTES] = {false};
         bool triggeroff[NUM_NOTES] = {false};
-        if (m_model.get_model_output(output_data, 1))
+
+        const bool has_model_output = m_model.get_model_output(output_data, 1);
+
+        if (has_model_output)
         {
             msg << "Output data:";
             for (int i = 0; i < NUM_NOTES; i++)
@@ -186,6 +189,39 @@ namespace GuitarMidi
                 m_note_on[i] = false;
             }
         }
+
+#ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
+
+        if (has_model_output && m_midioutput)
+        {
+            // Send one diagnostic message every 8 model results.
+            if (++m_diagnostic_counter >= 8)
+            {
+                m_diagnostic_counter = 0;
+    
+                // Diagnostic SysEx protocol version 1.
+                uint8_t sysex[14] = {
+                    0xF0, 0x7D, 0x47, 0x4D, 0x01,
+                    0x00, 0x00,  // E3
+                    0x00, 0x00,  // E4
+                    0x00, 0x00,  // B4
+                    0x00, 0x00,  // E5
+                    0xF7
+                };
+
+                encodeConfidence(output_data[12], &sysex[5]);
+                encodeConfidence(output_data[24], &sysex[7]);
+                encodeConfidence(output_data[31], &sysex[9]);
+                encodeConfidence(output_data[36], &sysex[11]);
+
+                m_midioutput->sendSysExMessage(
+                    sysex,
+                    sizeof(sysex),
+                    pos);
+            }
+        }
+
+#endif
         // #ifdef WITH_AUDIO_OUTPUT
 
         // #endif
