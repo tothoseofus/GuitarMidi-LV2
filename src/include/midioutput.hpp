@@ -57,5 +57,7 @@ namespace GuitarMidi {
         virtual void initializeSequence();
         virtual void finalizeSequence();
         virtual void sendMidiMessage(uint8_t midinote[3], int64_t frames);
+
+        void sendSysExMessage(const uint8_t* data, uint32_t size, int64_t frames) override;
     };
 }
