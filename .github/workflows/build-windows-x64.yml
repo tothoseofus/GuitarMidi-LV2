@@ -274,6 +274,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_UI=OFF `
             -DBUILD_DEB=OFF `
+            -DGUITARMIDI_SYSEX_DIAGNOSTICS=ON `
             -DTFLITE_ENABLE_XNNPACK=ON `
             "-DCMAKE_CXX_FLAGS=/I`"$includeDir`"" `
             "-DCMAKE_C_FLAGS=/I`"$includeDir`""
