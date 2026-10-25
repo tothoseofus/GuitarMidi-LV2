@@ -214,10 +214,26 @@ namespace GuitarMidi
                 encodeConfidence(output_data[31], &sysex[9]);
                 encodeConfidence(output_data[36], &sysex[11]);
 
-                m_midioutput->sendSysExMessage(
-                    sysex,
-                    sizeof(sysex),
-                    pos);
+                // Only transmit diagnostics if at least one
+                // measured confidence is non-zero.
+                bool has_activity = false;
+
+                for (int i = 5; i < 13; ++i)
+                {
+                    if (sysex[i] != 0)
+                    {
+                        has_activity = true;
+                        break;
+                    }
+                }
+
+                if (has_activity)
+                {
+                    m_midioutput->sendSysExMessage(
+                        sysex,
+                        sizeof(sysex),
+                        pos);
+                }
             }
         }
 
