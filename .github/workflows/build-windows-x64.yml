@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - Test-Windows-port
+      - testing-add-sysex-logging
 
 jobs:
   build-windows-x64:
