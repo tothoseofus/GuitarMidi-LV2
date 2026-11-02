@@ -23,6 +23,7 @@
 //#include <condition_variable>
 #include <atomic>
 #include <cstring>
+#include <cstdint>
 #include <guitarmidi/inferencenotification.hpp>
 #include <guitarmidi/common.hpp>
 #include <tensorflow/lite/version.h>
@@ -62,7 +63,8 @@ namespace GuitarMidi{
     public:
         // Called only by the producer.
         // Returns false if the buffer is full.
-        bool add_data(const float* data) {
+       bool add_data(const float* data, size_t* queued_after = nullptr)
+      {
             const size_t write =
                 write_index.load(std::memory_order_relaxed);
 
@@ -83,6 +85,15 @@ namespace GuitarMidi{
                 write + 1,
                 std::memory_order_release
             );
+
+            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+                if (queued_after != nullptr)
+                {
+                    *queued_after = write + 1 - read;
+                }
+            #else
+                 (void)queued_after;
+            #endif
 
             return true;
         }
@@ -118,6 +129,19 @@ namespace GuitarMidi{
 
             return true;
         }
+
+        #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+         size_t queued_count() const noexcept
+         {
+             const size_t write =
+                 write_index.load(std::memory_order_acquire);
+
+             const size_t read =
+                 read_index.load(std::memory_order_acquire);
+
+             return write - read;
+         }
+        #endif
     };
 
 
@@ -142,6 +166,18 @@ class ModelInferencer {
         std::atomic<bool> stop_thread{false};
 
         InferenceNotification input_ready;
+        // Diagnostic counters. Kept in the class layout for
+        // compatibility across compilation units.
+        // Updates are compiled out when diagnostics are OFF.
+        std::atomic<uint64_t> input_frames_accepted{0};
+        std::atomic<uint64_t> input_frames_dropped{0};
+        std::atomic<uint64_t> inferences_completed{0};
+        std::atomic<uint64_t> output_frames_dropped{0};
+        std::atomic<uint64_t> notification_failures{0};
+        std::atomic<uint64_t> empty_wakeups{0};
+        std::atomic<uint64_t> inference_errors{0};
+
+std::atomic<size_t> max_input_queue_depth{0};
 
         /** Runs model inference on frames received by the input ring buffer. */
         void inferencing_loop(const std::string& bundle_path);

@@ -38,20 +38,49 @@
                 m_interpreter->typed_input_tensor<float>(0);
 
             // Consume exactly one frame for this notification.
-            if (!audio_input_buffer.get_latest_data(input_buffer)) {
+            if (!audio_input_buffer.get_latest_data(input_buffer))
+            {
+            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+                empty_wakeups.fetch_add(
+                    1, std::memory_order_relaxed);
+            #endif
+
                 continue;
             }
 
-            if (m_interpreter->Invoke() != kTfLiteOk) {
+            if (m_interpreter->Invoke() != kTfLiteOk)
+            {
+            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+                inference_errors.fetch_add(
+                    1, std::memory_order_relaxed);
+            #endif
+
                 g_logger.error("TensorFlow Lite inference failed.\n");
                 break;
-            }    
+            }
+            
+            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+            inferences_completed.fetch_add(
+                1, std::memory_order_relaxed);
+            #endif
 
             float* output_data =
                 m_interpreter->typed_output_tensor<float>(0);
 
             // A full output queue drops the new result.
-            model_output_buffer.add_data(output_data);
+            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+
+                if (!model_output_buffer.add_data(output_data))
+                {
+                    output_frames_dropped.fetch_add(
+                        1, std::memory_order_relaxed);
+                }
+
+            #else
+
+                model_output_buffer.add_data(output_data);
+
+            #endif
         }
     }
 
@@ -190,6 +219,69 @@
             inferencing_thread.join();
         }
 
+        #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+
+        g_logger.info("=== GuitarMidi Inference Diagnostics ===\n");
+
+        g_logger.info(
+            "Input frames remaining at shutdown: %llu\n",
+            static_cast<unsigned long long>(
+                audio_input_buffer.queued_count())
+        );
+
+        g_logger.info(
+            "Input frames accepted: %llu\n",
+            static_cast<unsigned long long>(
+                input_frames_accepted.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Input frames dropped: %llu\n",
+            static_cast<unsigned long long>(
+                input_frames_dropped.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Maximum input queue depth: %llu / %llu\n",
+            static_cast<unsigned long long>(
+                max_input_queue_depth.load(std::memory_order_relaxed)),
+            static_cast<unsigned long long>(RING_BUFFER_SIZE)
+        );
+
+        g_logger.info(
+            "Inferences completed: %llu\n",
+            static_cast<unsigned long long>(
+                inferences_completed.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Output frames dropped: %llu\n",
+            static_cast<unsigned long long>(
+                output_frames_dropped.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Notification failures: %llu\n",
+            static_cast<unsigned long long>(
+                notification_failures.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Empty wake-ups: %llu\n",
+            static_cast<unsigned long long>(
+                empty_wakeups.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info(
+            "Inference errors: %llu\n",
+            static_cast<unsigned long long>(
+                inference_errors.load(std::memory_order_relaxed))
+        );
+
+        g_logger.info("====================================\n");
+
+        #endif
+
         // Destroy interpreter before the XNNPACK delegate.
         m_interpreter.reset();
 
@@ -213,13 +305,53 @@
             return;
         }
 
-        // Publish the new frame into the SPSC buffer.
-        if (audio_input_buffer.add_data(input)) {
-    
-            // Signal the inference thread.
-            // Does not wait for inference to complete.
+        #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
+
+        size_t queue_depth = 0;
+
+        // Try to enqueue one inference input frame.
+        if (audio_input_buffer.add_data(input, &queue_depth))
+        {
+            input_frames_accepted.fetch_add(
+                1, std::memory_order_relaxed);
+
+            // Maintain the queue occupancy high-water mark.
+            size_t previous_max =
+                max_input_queue_depth.load(
+                    std::memory_order_relaxed);
+
+            while (queue_depth > previous_max &&
+                   !max_input_queue_depth.compare_exchange_weak(
+                       previous_max,
+                       queue_depth,
+                       std::memory_order_relaxed,
+                       std::memory_order_relaxed))
+            {
+                // Retry only if the maximum changed.
+            }
+
+            // Notify the inference thread.
+            if (!input_ready.notify())
+            {
+                notification_failures.fetch_add(
+                    1, std::memory_order_relaxed);
+            }
+        }
+        else
+        {
+            input_frames_dropped.fetch_add(
+                1, std::memory_order_relaxed);
+        }
+
+        #else
+
+        // Normal production behaviour remains unchanged.
+        if (audio_input_buffer.add_data(input))
+        {
             input_ready.notify();
         }
+
+        #endif
 
         // If the ring buffer is full, the incoming
         // frame is dropped and no notification is sent.
