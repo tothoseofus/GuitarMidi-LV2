@@ -15,6 +15,8 @@ option(BUILD_ANALYSIS_APP "Build analysis app, useful for development" OFF)
 
 option(GUITARMIDI_SYSEX_DIAGNOSTICS "Enable MIDI SysEx confidence diagnostics" OFF)
 
+option(GUITARMIDI_INFERENCE_DIAGNOSTICS "Enable inference queue and performance diagnostics" OFF)
+
 if(WIN32)
     option(BUILD_UI "Build the X11/Cairo plugin UI" OFF)
 else()
