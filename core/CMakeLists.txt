@@ -120,6 +120,12 @@ if(NOT WIN32)
 endif()
 
 add_library(guitarmidi_core STATIC ${SRC})
+if(WIN32 AND GUITARMIDI_SYSEX_DIAGNOSTICS)
+    target_compile_definitions(
+        guitarmidi_core PRIVATE
+        GUITARMIDI_SYSEX_DIAGNOSTICS
+    )
+endif()
 set_target_properties(guitarmidi_core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 

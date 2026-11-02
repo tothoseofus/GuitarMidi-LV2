@@ -98,3 +98,28 @@ void MidiOutputLV2::sendMidiMessage(uint8_t midinote[3], int64_t frames)
         printf("Failed to send midinote (%d,%d,%d)\n", midinote[0], midinote[1], midinote[2]);
     
 }
+
+void MidiOutputLV2::sendSysExMessage(
+    const uint8_t* data,
+    uint32_t size,
+    int64_t frames)
+{
+    if (!m_midioutput || !data || size < 2)
+        return;
+
+    // Check for valid SysEx start/end bytes.
+    if (data[0] != 0xF0 || data[size - 1] != 0xF7)
+        return;
+
+    // Required space for LV2 event header and padded MIDI data.
+    const uint32_t required =
+        static_cast<uint32_t>(sizeof(LV2_Atom_Event)) +
+        lv2_atom_pad_size(size);
+
+    // Avoid writing a partial event if the output is full.
+    if (m_forge.offset > m_forge.size ||
+        required > m_forge.size - m_forge.offset)
+        return;
+
+    forge_midimessage(data, size, frames);
+}

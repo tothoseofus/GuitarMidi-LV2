@@ -1,6 +1,37 @@
 #include <guitarmidi/noteinferencer.hpp>
 #include <iostream>
 #include <tensorflow/lite/logger.h>
+
+#ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+namespace
+{
+    void encodeConfidence(float confidence, uint8_t* dest)
+    {
+        // Clamp to the expected confidence range of 0 to 1.
+        const float clamped =
+            std::isfinite(confidence)
+                ? std::clamp(confidence, 0.0f, 1.0f)
+                : 0.0f;
+
+        // Convert to a 14-bit unsigned integer.
+        const uint16_t value =
+            static_cast<uint16_t>(
+                std::lround(clamped * 16383.0f));
+
+        // MIDI SysEx data bytes must be 7-bit.
+        dest[0] =
+            static_cast<uint8_t>(value & 0x7F);
+
+        dest[1] =
+            static_cast<uint8_t>((value >> 7) & 0x7F);
+    }
+}
+#endif
+
 namespace GuitarMidi
 {
 
@@ -69,7 +100,10 @@ namespace GuitarMidi
 
         bool triggeron[NUM_NOTES] = {false};
         bool triggeroff[NUM_NOTES] = {false};
-        if (m_model.get_model_output(output_data, 1))
+
+        const bool has_model_output = m_model.get_model_output(output_data, 1);
+
+        if (has_model_output)
         {
             msg << "Output data:";
             for (int i = 0; i < NUM_NOTES; i++)
@@ -155,6 +189,55 @@ namespace GuitarMidi
                 m_note_on[i] = false;
             }
         }
+
+#ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
+
+        if (has_model_output && m_midioutput)
+        {
+            // Send one diagnostic message every 8 model results.
+            if (++m_diagnostic_counter >= 8)
+            {
+                m_diagnostic_counter = 0;
+    
+                // Diagnostic SysEx protocol version 1.
+                uint8_t sysex[14] = {
+                    0xF0, 0x7D, 0x47, 0x4D, 0x01,
+                    0x00, 0x00,  // E3
+                    0x00, 0x00,  // E4
+                    0x00, 0x00,  // B4
+                    0x00, 0x00,  // E5
+                    0xF7
+                };
+
+                encodeConfidence(output_data[12], &sysex[5]);
+                encodeConfidence(output_data[24], &sysex[7]);
+                encodeConfidence(output_data[31], &sysex[9]);
+                encodeConfidence(output_data[36], &sysex[11]);
+
+                // Only transmit diagnostics if at least one
+                // measured confidence is non-zero.
+                bool has_activity = false;
+
+                for (int i = 5; i < 13; ++i)
+                {
+                    if (sysex[i] != 0)
+                    {
+                        has_activity = true;
+                        break;
+                    }
+                }
+
+                if (has_activity)
+                {
+                    m_midioutput->sendSysExMessage(
+                        sysex,
+                        sizeof(sysex),
+                        pos);
+                }
+            }
+        }
+
+#endif
         // #ifdef WITH_AUDIO_OUTPUT
 
         // #endif
