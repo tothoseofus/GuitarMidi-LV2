@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - Test-Windows-port
+      - add-upstream-changes-debug-note-states
 
 jobs:
   build-windows-x64:
