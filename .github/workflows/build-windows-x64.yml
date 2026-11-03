@@ -6,8 +6,7 @@ on:
   push:
     branches:
       - Test-Windows-port
-      - add-upstream-changes-debug-note-states
-
+      - win/add-upstream-changes-debug-note-states
 jobs:
   build-windows-x64:
     runs-on: windows-2022
