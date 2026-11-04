@@ -84,8 +84,7 @@ function(generate_lv2_metadata SOURCE_FILE OUTPUT_FILE)
         )
     endforeach()
 
-    # Fail if any metadata placeholders remain unresolved.
-    if(TTL_CONTENT MATCHES "#<[A-Z_]+>")
+    if(TTL_CONTENT MATCHES "#<[A-Z_][A-Z_0-9]*>")
         message(FATAL_ERROR
             "Unresolved LV2 metadata placeholder in ${SOURCE_FILE}"
         )
