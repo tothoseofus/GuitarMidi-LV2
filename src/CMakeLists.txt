@@ -92,3 +92,26 @@ install(FILES
     "${CMAKE_SOURCE_DIR}/python/neuralnetmodelling/guitarmidi.tflite"
     DESTINATION guitarmidi.lv2
 )
+
+
+# Install MOD GUI resources for MOD Desktop and MODEP.
+# Use the existing piStomp GUI as the shared source.
+
+set(MODGUI_SOURCE
+    "${CMAKE_SOURCE_DIR}/hardware/moddevices/gui"
+)
+
+if(EXISTS "${MODGUI_SOURCE}/modgui.ttl"
+   AND IS_DIRECTORY "${MODGUI_SOURCE}/modgui")
+
+    install(FILES
+        "${MODGUI_SOURCE}/modgui.ttl"
+        DESTINATION guitarmidi.lv2
+    )
+
+    install(DIRECTORY
+        "${MODGUI_SOURCE}/modgui/"
+        DESTINATION guitarmidi.lv2/modgui
+    )
+
+endif()
