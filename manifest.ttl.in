@@ -1,0 +1,15 @@
+# Shared GuitarMidi manifest template.
+# CMake replaces the #<...> markers during configuration.
+
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ui:   <http://lv2plug.in/ns/extensions/ui#> .
+
+<http://github.com/geraldmwangi/GuitarMidi-LV2>
+    a lv2:Plugin ;
+    #<MANIFEST_LV2_BINARY>
+    rdfs:seeAlso <guitarmidi.ttl> ,
+                 <modgui.ttl> .
+
+#<MANIFEST_UI_DEFINITIONS>
+
