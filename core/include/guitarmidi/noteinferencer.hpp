@@ -19,6 +19,7 @@
  */
 #include <memory>
 #include <cstdint>
+#include <atomic>
 #include <guitarmidi/fretboard_api.hpp>
 #include <guitarmidi/common.hpp>
 #include <guitarmidi/config.hpp>
@@ -62,7 +63,7 @@ namespace GuitarMidi{
         //#ifdef WITH_AUDIO_OUTPUT
         int64_t m_frames=0;
         //#endif
-        bool m_note_on[NUM_NOTES]={false};
+        std::atomic<bool> m_note_on[NUM_NOTES];
 
         #ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
         uint32_t m_diagnostic_counter = 0;
@@ -142,7 +143,8 @@ namespace GuitarMidi{
 
         /** Copies the latest smoothed and momentary confidence and energy values. */
         void getDebugData(float *smoothed_confidences, float *smoothed_energies,
-                  float *momentary_confidences, float *momentary_energies) const;
+                          float *momentary_confidences, float *momentary_energies,
+                          bool *note_on = nullptr) const;
 
 #ifdef WITH_AUDIO_OUTPUT
         float *audio_output;

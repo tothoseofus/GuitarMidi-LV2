@@ -45,6 +45,8 @@ namespace GuitarMidi
 
     NoteInferencer::NoteInferencer(GuitarMidiOutput *midioutput) : m_midioutput(midioutput)
     {
+        for (auto& note_on : m_note_on)
+            note_on.store(false, std::memory_order_relaxed);
     }
     bool NoteInferencer::initialize(const std::string &bundle_path)
     {
@@ -66,7 +68,8 @@ namespace GuitarMidi
         m_audiobuffer = input;
     }
     void NoteInferencer::getDebugData(float *smoothed_confidences, float *smoothed_energies,
-                                      float *momentary_confidences, float *momentary_energies) const
+                                      float *momentary_confidences, float *momentary_energies,
+                                      bool *note_on) const
     {
         for (int i = 0; i < NUM_NOTES; ++i)
         {
@@ -74,6 +77,8 @@ namespace GuitarMidi
             smoothed_energies[i] = smoothed_noteenergies[i];
             momentary_confidences[i] = m_momentary_confidences[i];
             momentary_energies[i] = m_momentary_noteenergies[i];
+            if (note_on != nullptr)
+                note_on[i] = m_note_on[i].load(std::memory_order_relaxed);
         }
     }
     void NoteInferencer::process(int nsamples,int pos)
