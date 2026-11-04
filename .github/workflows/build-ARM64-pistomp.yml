@@ -124,27 +124,53 @@ jobs:
         ninja install
 
     
-    - name: Add MOD GUI to LV2 Bundle
+
+    - name: Verify LV2 Bundle and MOD GUI
       shell: bash
       run: |
         set -euo pipefail
 
         BUNDLE="install_dist/guitarmidi.lv2"
-        GUI_SOURCE="hardware/moddevices/gui"
 
-        # Verify that the bundle and MOD manifest exist
+        # Verify the LV2 bundle exists
         test -d "$BUNDLE"
-        test -f "$GUI_SOURCE/manifest.ttl"
 
-        # Copy all GUI files into the installed bundle
-        # This overwrites the original manifest.ttl
-        cp -av "$GUI_SOURCE/." "$BUNDLE/"
+        # Verify the plugin binary and model
+        test -f "$BUNDLE/guitarmidi.so"
+        test -f "$BUNDLE/guitarmidi.tflite"
 
-        # Verify that the MOD manifest replaced the original
-        cmp "$GUI_SOURCE/manifest.ttl" "$BUNDLE/manifest.ttl"
+        # Verify CMake-generated LV2 metadata
+        test -f "$BUNDLE/manifest.ttl"
+        test -f "$BUNDLE/guitarmidi.ttl"
 
+        # Verify MOD GUI resources
+        test -f "$BUNDLE/modgui.ttl"
+        test -d "$BUNDLE/modgui"
+
+        # Ensure all template placeholders were replaced
+        if grep -Eq '#<[A-Z_][A-Z_0-9]*>' \
+          "$BUNDLE/manifest.ttl" "$BUNDLE/guitarmidi.ttl"; then
+          echo "ERROR: Unresolved TTL placeholders found"
+          exit 1
+        fi
+
+        # Verify the ARM64 binary reference
+        if ! grep -q 'lv2:binary <guitarmidi.so>' "$BUNDLE/manifest.ttl"; then
+          echo "ERROR: Incorrect LV2 binary reference"
+          exit 1
+        fi
+
+        # Ensure no native X11 UI is advertised
+        if grep -q 'GuitarMidi-LV2#ui' \
+          "$BUNDLE/manifest.ttl" "$BUNDLE/guitarmidi.ttl"; then
+          echo "ERROR: Native X11 UI metadata found in headless ARM64 build"
+          exit 1
+        fi
+
+        echo "LV2 bundle and MOD GUI verified successfully"
         echo "Final LV2 bundle contents:"
         find "$BUNDLE" -type f | sort
+
 
 
     - name: Package Bundle
