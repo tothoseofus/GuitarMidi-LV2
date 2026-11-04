@@ -19,6 +19,14 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
+      - name: Set Build Version
+        shell: bash
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          BUILD_ID="build${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "Build version: $BUILD_ID"
+          
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -89,23 +97,40 @@ jobs:
           (cd build && cpack -G DEB -C Release) || (echo "cpack failed" && exit 1)
 
       - name: Tag and list generated Debian packages
+        shell: bash
         run: |
+          set -euo pipefail
+
           UBUNTU_TAG_RAW="${{ matrix.ubuntu-version }}"
           UBUNTU_TAG=$(echo "$UBUNTU_TAG_RAW" | sed -E 's/ubuntu-([0-9]+)\.([0-9]+)/ubuntu\1\2/')
-          set -e
-          for f in $(find build -name '*.deb'); do
+
+          shopt -s nullglob
+          packages=(build/debian/*.deb)
+
+          if (( ${#packages[@]} == 0 )); then
+            echo "ERROR: No Debian packages found"
+            exit 1
+          fi
+
+          for f in "${packages[@]}"; do
             dir=$(dirname "$f")
             base=$(basename "$f" .deb)
+
             if [[ "$base" =~ _([^_]+)$ ]]; then
               arch_suffix="_${BASH_REMATCH[1]}"
               name_prefix=${base%${arch_suffix}}
-              newname="${name_prefix}_${UBUNTU_TAG}${arch_suffix}.deb"
+
+              newname="${name_prefix}-${BUILD_ID}_${UBUNTU_TAG}${arch_suffix}.deb"
+
               mv "$f" "$dir/$newname"
+              echo "Created: $newname"
+            else
+              echo "ERROR: Unexpected Debian filename: $base"
+              exit 1
             fi
           done
-          find build -name '*.deb' -print
 
-
+          find build/debian -name '*.deb' -print
       - name: Verify Debian LV2 Packages
         shell: bash
         run: |
