@@ -73,6 +73,15 @@ if(WIN32)
         "${MANIFEST_CONTENT}"
     )
 
+    # Remove Linux X11 UI declarations from Windows manifest.
+    # The Windows build does not produce guitarmidi_ui.so.
+    string(REGEX REPLACE
+        "[^\r\n]*<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>[^\r\n]*\r?\n?"
+        ""
+        MANIFEST_CONTENT
+        "${MANIFEST_CONTENT}"
+    )
+
     file(WRITE
         "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
         "${MANIFEST_CONTENT}"
@@ -94,6 +103,7 @@ install(FILES
 )
 
 
+
 # Install MOD GUI resources for MOD Desktop and MODEP.
 # Use the existing piStomp GUI as the shared source.
 
@@ -101,17 +111,25 @@ set(MODGUI_SOURCE
     "${CMAKE_SOURCE_DIR}/hardware/moddevices/gui"
 )
 
-if(EXISTS "${MODGUI_SOURCE}/modgui.ttl"
-   AND IS_DIRECTORY "${MODGUI_SOURCE}/modgui")
-
-    install(FILES
-        "${MODGUI_SOURCE}/modgui.ttl"
-        DESTINATION guitarmidi.lv2
+if(NOT EXISTS "${MODGUI_SOURCE}/modgui.ttl")
+    message(FATAL_ERROR
+        "MOD GUI metadata missing: ${MODGUI_SOURCE}/modgui.ttl"
     )
-
-    install(DIRECTORY
-        "${MODGUI_SOURCE}/modgui/"
-        DESTINATION guitarmidi.lv2/modgui
-    )
-
 endif()
+
+if(NOT IS_DIRECTORY "${MODGUI_SOURCE}/modgui")
+    message(FATAL_ERROR
+        "MOD GUI resources missing: ${MODGUI_SOURCE}/modgui"
+    )
+endif()
+
+install(FILES
+    "${MODGUI_SOURCE}/modgui.ttl"
+    DESTINATION guitarmidi.lv2
+)
+
+install(DIRECTORY
+    "${MODGUI_SOURCE}/modgui/"
+    DESTINATION guitarmidi.lv2/modgui
+)
+
