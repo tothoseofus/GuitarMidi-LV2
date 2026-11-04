@@ -38,6 +38,10 @@ jobs:
         restore-keys: |
           arm64-ccache-v1-${{ runner.os }}-
 
+    - name: Reset ARM64 Cache Statistics
+      shell: bash
+      run: |
+        ccache --zero-stats
 
     - name: Fetch and Cross-Compile Upstream Zita-Resampler
       run: |
