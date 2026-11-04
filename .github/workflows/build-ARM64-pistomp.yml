@@ -18,7 +18,26 @@ jobs:
     - name: Install ARM64 Cross-Compiler and Build Tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip curl tar xz-utils lv2-dev
+        sudo apt-get install -y build-essential cmake ninja-build ccache gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip curl tar xz-utils lv2-dev
+
+    
+    - name: Configure ARM64 Compilation Cache
+      shell: bash
+      run: |
+        echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+        echo "CCACHE_MAXSIZE=2G" >> "$GITHUB_ENV"
+        echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
+        ccache --version
+
+    - name: Restore ARM64 Compilation Cache
+      id: arm64-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/ccache
+        key: arm64-ccache-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          arm64-ccache-v1-${{ runner.os }}-
+
 
     - name: Fetch and Cross-Compile Upstream Zita-Resampler
       run: |
@@ -31,7 +50,9 @@ jobs:
         export CXX=aarch64-linux-gnu-g++
         
         # Compile source objects using the parent directory path as an include flag
-        $CXX -O2 -Wall -fPIC -I. -I.. -c resampler.cc resampler-table.cc cresampler.cc vresampler.cc
+        for src in resampler.cc resampler-table.cc cresampler.cc vresampler.cc; do
+            ccache "$CXX" -O2 -Wall -fPIC -I. -I.. -c "$src"
+        done
         aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o resampler-table.o cresampler.o vresampler.o
 
         echo "Checking for Resampler_table::destroy in the archive..."
@@ -76,7 +97,9 @@ jobs:
             -B "$GITHUB_WORKSPACE/flatc-native-build" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=/usr/bin/gcc \
-            -DCMAKE_CXX_COMPILER=/usr/bin/g++
+            -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
           cmake --build "$GITHUB_WORKSPACE/flatc-native-build" --parallel 2
 
@@ -105,6 +128,8 @@ jobs:
           -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
           -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
           -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install_dist" \
           -DBUILD_UI=OFF \
@@ -122,6 +147,19 @@ jobs:
         cd build
         ninja
         ninja install
+        
+    - name: Show ARM64 Compilation Cache Statistics
+      shell: bash
+      run: |
+        echo "ARM64 compilation cache statistics:"
+        ccache --show-stats
+        ccache --show-config | grep -E 'cache_dir|max_size'
+
+    - name: Save ARM64 Compilation Cache
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/ccache
+        key: arm64-ccache-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
     - name: Verify LV2 Bundle and MOD GUI
       shell: bash
