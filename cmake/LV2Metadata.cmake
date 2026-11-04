@@ -18,6 +18,10 @@ set(MANIFEST_VERSION
     lv2:microVersion ${GUITARMIDI_VERSION_PATCH} ;"
 )
 
+set(GUITARMIDI_REVISION
+    "doap:revision \"${GUITARMIDI_VERSION}\" ;"
+)
+
 # WIN32 controls the platform binary filename.
 # BUILD_UI controls the native X11 UI declarations.
 # MOD web GUI metadata is shared across builds.
