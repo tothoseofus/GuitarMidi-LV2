@@ -39,6 +39,17 @@ public:
     virtual void finalizeSequence()=0;
     /** Sends a three-byte MIDI message at the specified audio frame. */
     virtual void sendMidiMessage(uint8_t midinote[3], int64_t frames)=0;
+    /** Sends variable-length diagnostic MIDI data. */
+    virtual void sendSysExMessage(
+        const uint8_t* data,
+        uint32_t size,
+        int64_t frames)
+    {
+        // Default no-op for other MIDI output implementations.
+        (void)data;
+        (void)size;
+        (void)frames;
+    }
 };
 
 
@@ -132,7 +143,8 @@ public:
 
     /** Copies the latest smoothed and momentary note confidence and energy values. */
     virtual void getNoteDebugData(float *smoothed_confidences, float *smoothed_energies,
-                                  float *momentary_confidences, float *momentary_energies) const = 0;
+                                  float *momentary_confidences, float *momentary_energies,
+                                  bool *note_on = nullptr) const = 0;
 
     /** Copies decimated signed waveform samples for every filter. */
     virtual void getFilterWaveforms(float *waveforms, uint32_t samples_per_filter) const = 0;

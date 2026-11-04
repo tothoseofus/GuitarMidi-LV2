@@ -100,13 +100,39 @@ add_subdirectory(
   EXCLUDE_FROM_ALL
 )
 
+set(SRC
+    src/fretboard.cpp
+    src/fretboardrepresentation.cpp
+    src/guitarnote.cpp
+    src/filterbank.cpp
+    src/guitarstring.cpp
+    src/noteinferencer.cpp
+    src/modelinferencer.cpp
+)
 
-
-
-set(SRC    src/fretboard.cpp src/fretboardrepresentation.cpp src/guitarnote.cpp src/logging.cpp src/filterbank.cpp src/guitarstring.cpp src/noteinferencer.cpp src/modelinferencer.cpp)
+# The existing logging.cpp uses POSIX clock_gettime().
+# It is not needed for normal operation when tracing is disabled.
+if(NOT WIN32)
+    list(APPEND SRC src/logging.cpp)
+endif()
 
 add_library(guitarmidi_core STATIC ${SRC})
+if(GUITARMIDI_SYSEX_DIAGNOSTICS)
+    target_compile_definitions(
+        guitarmidi_core PRIVATE
+        GUITARMIDI_SYSEX_DIAGNOSTICS
+    )
+endif()
+
+if(GUITARMIDI_INFERENCE_DIAGNOSTICS)
+    target_compile_definitions(
+        guitarmidi_core PRIVATE
+        GUITARMIDI_INFERENCE_DIAGNOSTICS
+    )
+endif()
+
 set_target_properties(guitarmidi_core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
 
 
 target_include_directories(guitarmidi_core PUBLIC

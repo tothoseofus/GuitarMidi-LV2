@@ -4,7 +4,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.ubuntu-version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           submodules: 'recursive'
           fetch-depth: 0
@@ -25,7 +25,24 @@ jobs:
           sudo apt-get install -y cmake build-essential pkg-config lv2-dev libzita-resampler-dev fakeroot dpkg-dev debhelper libx11-dev libcairo2-dev
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_DEB=ON
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZITA_LIB=$(dpkg -L libzita-resampler-dev | grep -E '/libzita-resampler\.so$' | head -n 1)
+
+          if [[ -z "$ZITA_LIB" || ! -e "$ZITA_LIB" ]]; then
+            echo "ERROR: zita-resampler library not found"
+            exit 1
+          fi
+
+          echo "Using zita-resampler: $ZITA_LIB"
+
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_DEB=ON \
+            -DZITA_RESAMPLER_INCLUDE_DIR=/usr/include \
+            -DZITA_RESAMPLER_LIB="$ZITA_LIB"
 
       - name: Build
         run: cmake --build build -- -j$(nproc)
@@ -53,25 +70,9 @@ jobs:
           find build -name '*.deb' -print
 
       - name: Upload deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deb-${{ matrix.ubuntu-version }}
-          path: build/**/*.deb
+          path: build/debian/*.deb
           if-no-files-found: error
 
-  release:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all deb artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-
-      - name: Create GitHub Release and upload assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/**/*.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

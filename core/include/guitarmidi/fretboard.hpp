@@ -174,13 +174,14 @@ public:
      */
     virtual void process(int nsamples);
 
-    /** Copies the latest smoothed and momentary note debug values. */
-    virtual void getNoteDebugData(float *smoothed_confidences, float *smoothed_energies,
-                                  float *momentary_confidences, float *momentary_energies) const
-    {
-        m_noteinferencer.getDebugData(smoothed_confidences, smoothed_energies,
-                                      momentary_confidences, momentary_energies);
-    }
+   /** Copies the latest smoothed and momentary note debug values. */
+   virtual void getNoteDebugData(float *smoothed_confidences, float *smoothed_energies,
+                                 float *momentary_confidences, float *momentary_energies,
+                                 bool *note_on = nullptr) const
+   {
+       m_noteinferencer.getDebugData(smoothed_confidences, smoothed_energies,
+                                     momentary_confidences, momentary_energies, note_on);
+   }
 
     /** Copies decimated signed waveform samples for every filter. */
     virtual void getFilterWaveforms(float *waveforms, uint32_t samples_per_filter) const;
