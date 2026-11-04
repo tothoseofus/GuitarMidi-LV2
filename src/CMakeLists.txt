@@ -45,21 +45,78 @@ else()
     )
 endif()
 
-# Copy selected description under the standard name.
-configure_file(
-    "${PLUGIN_TTL_SOURCE}"
-    "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
-    COPYONLY
-)
 
-# Prepare the platform-specific manifest.
-if(WIN32)
-    file(READ
-        "${CMAKE_SOURCE_DIR}/manifest.ttl"
-        MANIFEST_CONTENT
+# Prepare the platform-specific plugin description.
+# Linux retains the X11 UI; Windows excludes it.
+
+if(NOT BUILD_UI)
+    file(READ "${PLUGIN_TTL_SOURCE}" PLUGIN_CONTENT)
+
+    # Normalise line endings before processing.
+    string(REPLACE "\r\n" "\n" PLUGIN_CONTENT "${PLUGIN_CONTENT}")
+
+    # Escape semicolons before converting text to a CMake list.
+    string(REPLACE ";" "\\;" PLUGIN_CONTENT "${PLUGIN_CONTENT}")
+    string(REPLACE "\n" ";" PLUGIN_LINES "${PLUGIN_CONTENT}")
+
+    set(PLUGIN_CONTENT "")
+    set(SKIP_X11_UI_BLOCK FALSE)
+
+    foreach(LINE IN LISTS PLUGIN_LINES)
+
+        # Skip entire Turtle statements describing the X11 UI.
+        if(LINE MATCHES
+           "^[ \t]*<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>")
+            set(SKIP_X11_UI_BLOCK TRUE)
+        endif()
+
+        if(SKIP_X11_UI_BLOCK)
+            # A period terminates the current Turtle statement.
+            if(LINE MATCHES "[.][ \t]*$")
+                set(SKIP_X11_UI_BLOCK FALSE)
+            endif()
+            continue()
+        endif()
+
+        # Remove the plugin's reference to the X11 UI.
+        if(LINE MATCHES "^[ \t]*ui:ui[ \t]+")
+            continue()
+        endif()
+
+        string(APPEND PLUGIN_CONTENT "${LINE}\n")
+    endforeach()
+
+    if(SKIP_X11_UI_BLOCK)
+        message(FATAL_ERROR
+            "Unterminated X11 UI statement in ${PLUGIN_TTL_SOURCE}"
+        )
+    endif()
+
+    file(WRITE
+        "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
+        "${PLUGIN_CONTENT}"
     )
 
-    # Ensure that the manifest contains the expected binary.
+else()
+    # Linux retains the original description and X11 UI.
+    configure_file(
+        "${PLUGIN_TTL_SOURCE}"
+        "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
+        COPYONLY
+    )
+endif()
+
+
+
+# Prepare the manifest for the selected platform and UI configuration.
+
+file(READ
+    "${CMAKE_SOURCE_DIR}/manifest.ttl"
+    MANIFEST_CONTENT
+)
+
+# Windows uses a DLL rather than a Linux shared library.
+if(WIN32)
     if(NOT MANIFEST_CONTENT MATCHES "guitarmidi[.]so")
         message(FATAL_ERROR
             "Expected guitarmidi.so in manifest.ttl"
@@ -72,27 +129,23 @@ if(WIN32)
         MANIFEST_CONTENT
         "${MANIFEST_CONTENT}"
     )
+endif()
 
-    # Remove Linux X11 UI declarations from Windows manifest.
-    # The Windows build does not produce guitarmidi_ui.so.
+# Remove X11 UI declarations when the native UI is disabled.
+if(NOT BUILD_UI)
     string(REGEX REPLACE
         "[^\r\n]*<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>[^\r\n]*\r?\n?"
         ""
         MANIFEST_CONTENT
         "${MANIFEST_CONTENT}"
     )
-
-    file(WRITE
-        "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
-        "${MANIFEST_CONTENT}"
-    )
-else()
-    configure_file(
-        "${CMAKE_SOURCE_DIR}/manifest.ttl"
-        "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
-        COPYONLY
-    )
 endif()
+
+file(WRITE
+    "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
+    "${MANIFEST_CONTENT}"
+)
+
 
 # Install metadata and trained TensorFlow Lite model.
 install(FILES
