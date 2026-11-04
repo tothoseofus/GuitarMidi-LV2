@@ -4,8 +4,7 @@ name: build-windows-x64
 on:
   workflow_dispatch:
   push:
-    branches:
-      - Test-Windows-port
+    branches: [ "master", "main" ]
 jobs:
   build-windows-x64:
     runs-on: windows-2022
