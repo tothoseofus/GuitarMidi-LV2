@@ -73,6 +73,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: deb-${{ matrix.ubuntu-version }}
-          path: build/**/*.deb
+          path: build/debian/*.deb
           if-no-files-found: error
 
