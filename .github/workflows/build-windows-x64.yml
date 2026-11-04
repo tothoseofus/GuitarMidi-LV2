@@ -19,6 +19,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set Build Version
+        shell: pwsh
+        run: |
+          $shortSha = (git rev-parse --short=7 HEAD).Trim()
+          $buildId = "build$($env:GITHUB_RUN_NUMBER)-$shortSha"
+          "BUILD_ID=$buildId" >> $env:GITHUB_ENV
+          Write-Host "Build version: $buildId"
+
       - name: Set up MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -408,10 +416,26 @@ jobs:
           Get-ChildItem $bundle -Recurse -File |
             Select-Object FullName
 
+      - name: Create Versioned Windows Package
+        shell: pwsh
+        run: |
+          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi.lv2"
+          $zip = "$env:GITHUB_WORKSPACE/stage/guitarmidi-windows-x64-$env:BUILD_ID.zip"
+
+          Compress-Archive `
+            -Path $bundle `
+            -DestinationPath $zip `
+            -CompressionLevel Optimal
+
+          if (-not (Test-Path $zip)) {
+            throw "Windows package creation failed"
+          }
+
+          Write-Host "Created: $zip"
 
       - name: Upload Windows LV2 Bundle
         uses: actions/upload-artifact@v6
         with:
-          name: guitarmidi-windows-lv2
-          path: stage/guitarmidi.lv2/
+          name: guitarmidi-windows-x64-${{ env.BUILD_ID }}
+          path: stage/guitarmidi-windows-x64-${{ env.BUILD_ID }}.zip
           if-no-files-found: error
