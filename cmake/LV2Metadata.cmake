@@ -1,6 +1,23 @@
 
 # Shared GuitarMidi LV2 metadata substitutions.
 #
+# --------------------------------------------
+# GuitarMidi version
+# --------------------------------------------
+
+set(GUITARMIDI_VERSION_MAJOR 0)
+set(GUITARMIDI_VERSION_MINOR 3)
+set(GUITARMIDI_VERSION_PATCH 1)
+
+set(GUITARMIDI_VERSION
+    "${GUITARMIDI_VERSION_MAJOR}.${GUITARMIDI_VERSION_MINOR}.${GUITARMIDI_VERSION_PATCH}"
+)
+
+set(MANIFEST_VERSION
+    "lv2:minorVersion ${GUITARMIDI_VERSION_MINOR} ;
+    lv2:microVersion ${GUITARMIDI_VERSION_PATCH} ;"
+)
+
 # WIN32 controls the platform binary filename.
 # BUILD_UI controls the native X11 UI declarations.
 # MOD web GUI metadata is shared across builds.
