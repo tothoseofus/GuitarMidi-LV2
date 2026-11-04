@@ -123,8 +123,6 @@ jobs:
         ninja
         ninja install
 
-    
-
     - name: Verify LV2 Bundle and MOD GUI
       shell: bash
       run: |
@@ -132,46 +130,61 @@ jobs:
 
         BUNDLE="install_dist/guitarmidi.lv2"
 
-        # Verify the LV2 bundle exists
-        test -d "$BUNDLE"
+        echo "Verifying piStomp ARM64 LV2 bundle..."
 
-        # Verify the plugin binary and model
+        # Required plugin files
+        test -d "$BUNDLE"
         test -f "$BUNDLE/guitarmidi.so"
         test -f "$BUNDLE/guitarmidi.tflite"
-
-        # Verify CMake-generated LV2 metadata
         test -f "$BUNDLE/manifest.ttl"
         test -f "$BUNDLE/guitarmidi.ttl"
 
-        # Verify MOD GUI resources
+        # Required MOD GUI files
         test -f "$BUNDLE/modgui.ttl"
         test -d "$BUNDLE/modgui"
 
-        # Ensure all template placeholders were replaced
+        if ! find "$BUNDLE/modgui" -type f | grep -q .; then
+          echo "ERROR: MOD GUI directory is empty"
+          exit 1
+        fi
+
+        # Check for unresolved template placeholders
         if grep -Eq '#<[A-Z_][A-Z_0-9]*>' \
           "$BUNDLE/manifest.ttl" "$BUNDLE/guitarmidi.ttl"; then
           echo "ERROR: Unresolved TTL placeholders found"
           exit 1
         fi
 
-        # Verify the ARM64 binary reference
-        if ! grep -q 'lv2:binary <guitarmidi.so>' "$BUNDLE/manifest.ttl"; then
-          echo "ERROR: Incorrect LV2 binary reference"
+        # Verify the Linux binary reference
+        if ! grep -Fq 'lv2:binary <guitarmidi.so>' \
+          "$BUNDLE/manifest.ttl"; then
+          echo "ERROR: Incorrect ARM64 plugin binary reference"
           exit 1
         fi
 
-        # Ensure no native X11 UI is advertised
-        if grep -q 'GuitarMidi-LV2#ui' \
+        # Verify MOD GUI reference
+        if ! grep -Fq '<modgui.ttl>' "$BUNDLE/manifest.ttl"; then
+          echo "ERROR: MOD GUI is not referenced in manifest.ttl"
+          exit 1
+        fi
+
+        # Headless builds must not advertise the native X11 UI
+        if grep -Fq 'GuitarMidi-LV2#ui' \
           "$BUNDLE/manifest.ttl" "$BUNDLE/guitarmidi.ttl"; then
-          echo "ERROR: Native X11 UI metadata found in headless ARM64 build"
+          echo "ERROR: X11 UI metadata found in headless ARM64 build"
           exit 1
         fi
 
-        echo "LV2 bundle and MOD GUI verified successfully"
-        echo "Final LV2 bundle contents:"
+        # Check the actual binary architecture
+        if ! file "$BUNDLE/guitarmidi.so" | grep -q 'ARM aarch64'; then
+          echo "ERROR: Plugin is not an ARM64 binary"
+          file "$BUNDLE/guitarmidi.so"
+          exit 1
+        fi
+
+        echo "ARM64 LV2 bundle verification successful"
+        echo "Final bundle contents:"
         find "$BUNDLE" -type f | sort
-
-
 
     - name: Package Bundle
       run: |
