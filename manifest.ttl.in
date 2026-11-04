@@ -8,6 +8,7 @@
 <http://github.com/geraldmwangi/GuitarMidi-LV2>
     a lv2:Plugin ;
     #<MANIFEST_LV2_BINARY>
+    #<MANIFEST_VERSION>
     rdfs:seeAlso <guitarmidi.ttl> ,
                  <modgui.ttl> .
 
