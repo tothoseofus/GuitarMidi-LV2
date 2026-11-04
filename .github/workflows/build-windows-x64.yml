@@ -302,7 +302,7 @@ jobs:
           Write-Host "Windows GuitarMidi build completed."
 
 
-      - name: Package GuitarMidi Windows LV2
+      - name: Package and Verify GuitarMidi Windows LV2
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -311,13 +311,77 @@ jobs:
             --config Release `
             --prefix "$env:GITHUB_WORKSPACE/stage"
 
-          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi.lv2"
-
-          if (-not (Test-Path "$bundle/guitarmidi.dll")) {
-            throw "GuitarMidi DLL missing from LV2 bundle"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows LV2 installation failed"
           }
 
-          Get-ChildItem $bundle
+          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi.lv2"
+
+          Write-Host "Verifying Windows LV2 bundle..."
+
+          # Required files
+          $required = @(
+            "guitarmidi.dll",
+            "guitarmidi.tflite",
+            "manifest.ttl",
+            "guitarmidi.ttl",
+            "modgui.ttl"
+          )
+
+          foreach ($file in $required) {
+            if (-not (Test-Path "$bundle/$file" -PathType Leaf)) {
+              throw "Missing LV2 file: $file"
+            }
+          }
+
+          # Verify MOD GUI directory
+          if (-not (Test-Path "$bundle/modgui" -PathType Container)) {
+            throw "MOD GUI directory missing"
+          }
+
+          $guiFiles = @(
+            Get-ChildItem "$bundle/modgui" -File -Recurse
+          )
+
+          if ($guiFiles.Count -eq 0) {
+            throw "MOD GUI directory is empty"
+          }
+
+          # Read generated metadata
+          $manifest = Get-Content "$bundle/manifest.ttl" -Raw
+          $pluginTTL = Get-Content "$bundle/guitarmidi.ttl" -Raw
+
+          # Check unresolved placeholders
+          $placeholderPattern = '#<[A-Z_][A-Z_0-9]*>'
+
+          if ($manifest -match $placeholderPattern -or
+              $pluginTTL -match $placeholderPattern) {
+            throw "Unresolved TTL placeholders found"
+          }
+
+          # Verify Windows DLL reference
+          if (-not $manifest.Contains(
+            'lv2:binary <guitarmidi.dll>')) {
+            throw "Incorrect Windows binary reference"
+          }
+
+          # Verify MOD GUI reference
+          if (-not $manifest.Contains('<modgui.ttl>')) {
+            throw "MOD GUI not referenced in manifest.ttl"
+          }
+
+          # Windows must not advertise the X11 native UI
+          if ($manifest.Contains('GuitarMidi-LV2#ui') -or
+              $pluginTTL.Contains('GuitarMidi-LV2#ui')) {
+            throw "X11 UI metadata found in Windows build"
+          }
+
+          Write-Host "Windows LV2 verification successful"
+          Write-Host "MOD GUI files: $($guiFiles.Count)"
+          Write-Host "Final bundle contents:"
+
+          Get-ChildItem $bundle -Recurse -File |
+            Select-Object FullName
 
 
       - name: Upload Windows LV2 Bundle
