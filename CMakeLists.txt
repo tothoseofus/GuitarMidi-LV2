@@ -49,8 +49,9 @@ else()
 endif()
 
 if(BUILD_DEB)
-    include(setversionfromgit)
-    setversionfromgit()
+    # Use the project version for Debian packaging.
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+
     include(debian)
 endif()
 
