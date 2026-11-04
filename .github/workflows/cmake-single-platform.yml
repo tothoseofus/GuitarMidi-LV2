@@ -69,6 +69,97 @@ jobs:
           done
           find build -name '*.deb' -print
 
+
+      - name: Verify Debian LV2 Packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          packages=(build/debian/*.deb)
+
+          if (( ${#packages[@]} == 0 )); then
+            echo "ERROR: No Debian packages found"
+            exit 1
+          fi
+
+          for deb in "${packages[@]}"; do
+            echo "Verifying $deb"
+
+            TEMP_DIR=$(mktemp -d)
+
+            # Extract package for inspection
+            dpkg-deb -x "$deb" "$TEMP_DIR"
+
+            # Locate the installed LV2 bundle
+            BUNDLE=$(find "$TEMP_DIR" \
+              -type d -name guitarmidi.lv2 -print -quit)
+
+            if [[ -z "$BUNDLE" ]]; then
+              echo "ERROR: LV2 bundle missing from $deb"
+              exit 1
+            fi
+
+            # Required plugin files
+            test -f "$BUNDLE/guitarmidi.so"
+            test -f "$BUNDLE/guitarmidi_ui.so"
+            test -f "$BUNDLE/guitarmidi.tflite"
+            test -f "$BUNDLE/manifest.ttl"
+            test -f "$BUNDLE/guitarmidi.ttl"
+
+            # Required MOD GUI resources
+            test -f "$BUNDLE/modgui.ttl"
+            test -d "$BUNDLE/modgui"
+
+            if ! find "$BUNDLE/modgui" -type f | grep -q .; then
+              echo "ERROR: MOD GUI directory is empty"
+              exit 1
+            fi
+
+            # Check for unresolved placeholders
+            if grep -Eq '#<[A-Z_][A-Z_0-9]*>' \
+              "$BUNDLE/manifest.ttl" "$BUNDLE/guitarmidi.ttl"; then
+              echo "ERROR: Unresolved TTL placeholders"
+              exit 1
+            fi
+
+            # Verify Linux plugin binary
+            if ! grep -Fq 'lv2:binary <guitarmidi.so>' \
+              "$BUNDLE/manifest.ttl"; then
+              echo "ERROR: Incorrect Linux binary reference"
+              exit 1
+            fi
+
+            # Verify native X11 UI is advertised
+            if ! grep -Fq 'ui:binary <guitarmidi_ui.so>' \
+              "$BUNDLE/manifest.ttl"; then
+              echo "ERROR: Native X11 UI missing from manifest"
+              exit 1
+            fi
+
+            if ! grep -Fq 'ui:ui ' "$BUNDLE/guitarmidi.ttl"; then
+              echo "ERROR: Native X11 UI reference missing"
+              exit 1
+            fi
+
+            # Verify MOD GUI is advertised
+            if ! grep -Fq '<modgui.ttl>' "$BUNDLE/manifest.ttl"; then
+              echo "ERROR: MOD GUI not referenced"
+              exit 1
+            fi
+
+            # Verify x86-64 architecture
+            if ! file "$BUNDLE/guitarmidi.so" | grep -q 'x86-64'; then
+              echo "ERROR: Incorrect Linux binary architecture"
+              exit 1
+            fi
+
+            echo "Package verification successful: $deb"
+
+            rm -rf "$TEMP_DIR"
+          done
+
+
       - name: Upload deb artifact
         uses: actions/upload-artifact@v6
         with:
