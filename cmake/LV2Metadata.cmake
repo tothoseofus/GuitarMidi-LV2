@@ -3,24 +3,27 @@
 #
 # --------------------------------------------
 # GuitarMidi version
+# Version defined in root CMakeLists.txt
 # --------------------------------------------
 
-set(GUITARMIDI_VERSION_MAJOR 0)
-set(GUITARMIDI_VERSION_MINOR 3)
-set(GUITARMIDI_VERSION_PATCH 1)
+if(NOT PROJECT_VERSION)
+    message(FATAL_ERROR
+        "GuitarMidi project version is not defined"
+    )
+endif()
 
-set(GUITARMIDI_VERSION
-    "${GUITARMIDI_VERSION_MAJOR}.${GUITARMIDI_VERSION_MINOR}.${GUITARMIDI_VERSION_PATCH}"
-)
+set(GUITARMIDI_VERSION "${PROJECT_VERSION}")
 
 set(MANIFEST_VERSION
-    "lv2:minorVersion ${GUITARMIDI_VERSION_MINOR} ;
-    lv2:microVersion ${GUITARMIDI_VERSION_PATCH} ;"
+    "lv2:minorVersion ${PROJECT_VERSION_MINOR} ;
+    lv2:microVersion ${PROJECT_VERSION_PATCH} ;"
 )
 
 set(GUITARMIDI_REVISION
-    "doap:revision \"${GUITARMIDI_VERSION}\" ;"
+    "doap:revision \"${PROJECT_VERSION}\" ;"
 )
+
+message(STATUS "GuitarMidi version: ${PROJECT_VERSION}")
 
 # WIN32 controls the platform binary filename.
 # BUILD_UI controls the native X11 UI declarations.
