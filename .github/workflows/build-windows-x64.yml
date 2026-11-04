@@ -327,10 +327,3 @@ jobs:
           name: guitarmidi-windows-lv2
           path: stage/guitarmidi.lv2/
           if-no-files-found: error
-
-      - name: Upload Windows Dependencies
-        uses: actions/upload-artifact@v6
-        with:
-          name:  guitarmidi-windows-dependencies
-          path: deps/
-          if-no-files-found: error
