@@ -49,9 +49,6 @@ else()
 endif()
 
 if(BUILD_DEB)
-    # Use the project version for Debian packaging.
-    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-
     include(debian)
 endif()
 
