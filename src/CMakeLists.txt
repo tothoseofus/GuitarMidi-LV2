@@ -46,49 +46,45 @@ else()
 endif()
 
 
-# Prepare the platform-specific plugin description.
-# Linux retains the X11 UI; Windows excludes it.
+
+# Prepare plugin metadata based on native UI availability.
+# BUILD_UI=OFF removes X11 UI declarations.
+# MOD GUI support is retained for all platforms.
 
 if(NOT BUILD_UI)
     file(READ "${PLUGIN_TTL_SOURCE}" PLUGIN_CONTENT)
 
-    # Normalise line endings before processing.
+    # Normalise line endings.
     string(REPLACE "\r\n" "\n" PLUGIN_CONTENT "${PLUGIN_CONTENT}")
 
-    # Escape semicolons before converting text to a CMake list.
-    string(REPLACE ";" "\\;" PLUGIN_CONTENT "${PLUGIN_CONTENT}")
-    string(REPLACE "\n" ";" PLUGIN_LINES "${PLUGIN_CONTENT}")
+    # Remove the X11 UI definition.
+    string(REGEX REPLACE
+        "<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>[ \t\n]+a ui:X11UI[^\n]*\n[^\n]*\n[^\n]*"
+        ""
+        PLUGIN_CONTENT
+        "${PLUGIN_CONTENT}"
+    )
 
-    set(PLUGIN_CONTENT "")
-    set(SKIP_X11_UI_BLOCK FALSE)
+    # Remove the plugin's reference to the X11 UI.
+    string(REGEX REPLACE
+        "[ \t]*ui:ui[ \t]+<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>[ \t]*;[ \t]*\n"
+        ""
+        PLUGIN_CONTENT
+        "${PLUGIN_CONTENT}"
+    )
 
-    foreach(LINE IN LISTS PLUGIN_LINES)
+    # Remove the X11 UI port notification statement.
+    string(REGEX REPLACE
+        "<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>[ \t\n]+ui:portNotification[ \t]*\\[[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*"
+        ""
+        PLUGIN_CONTENT
+        "${PLUGIN_CONTENT}"
+    )
 
-        # Skip entire Turtle statements describing the X11 UI.
-        if(LINE MATCHES
-           "^[ \t]*<http://github[.]com/geraldmwangi/GuitarMidi-LV2#ui>")
-            set(SKIP_X11_UI_BLOCK TRUE)
-        endif()
-
-        if(SKIP_X11_UI_BLOCK)
-            # A period terminates the current Turtle statement.
-            if(LINE MATCHES "[.][ \t]*$")
-                set(SKIP_X11_UI_BLOCK FALSE)
-            endif()
-            continue()
-        endif()
-
-        # Remove the plugin's reference to the X11 UI.
-        if(LINE MATCHES "^[ \t]*ui:ui[ \t]+")
-            continue()
-        endif()
-
-        string(APPEND PLUGIN_CONTENT "${LINE}\n")
-    endforeach()
-
-    if(SKIP_X11_UI_BLOCK)
+    # Prevent packaging if an X11 UI reference remains.
+    if(PLUGIN_CONTENT MATCHES "GuitarMidi-LV2#ui")
         message(FATAL_ERROR
-            "Unterminated X11 UI statement in ${PLUGIN_TTL_SOURCE}"
+            "X11 UI metadata remains despite BUILD_UI=OFF"
         )
     endif()
 
@@ -98,7 +94,7 @@ if(NOT BUILD_UI)
     )
 
 else()
-    # Linux retains the original description and X11 UI.
+    # Preserve original metadata when native UI is enabled.
     configure_file(
         "${PLUGIN_TTL_SOURCE}"
         "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
