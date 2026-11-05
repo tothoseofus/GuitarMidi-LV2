@@ -420,5 +420,5 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: guitarmidi-windows-x64-${{ env.BUILD_ID }}
-          path: stage/guitarmidi.lv2/
+          path: stage/
           if-no-files-found: error
