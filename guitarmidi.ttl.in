@@ -14,11 +14,7 @@
 @prefix midi:  <http://lv2plug.in/ns/ext/midi#> .
 @prefix ui:    <http://lv2plug.in/ns/extensions/ui#> .
 
-# X11 UI for the plugin
-<http://github.com/geraldmwangi/GuitarMidi-LV2#ui>
-	a ui:X11UI ;
-    lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
-	lv2:extensionData ui:idleInterface .
+#<GUITARMIDI_UI_DEFINITION>
 
 # First the type of the plugin is described.  All plugins must explicitly list
 # `lv2:Plugin` as a type.  A more specific type should also be given, where
@@ -31,9 +27,10 @@
 	lv2:project <http://lv2plug.in/ns/lv2> ;
 	doap:name "Guitar Midi";
 	doap:license <http://opensource.org/licenses/isc> ;
+	#<GUITARMIDI_REVISION>
     lv2:optionalFeature lv2:hardRTCapable ;
     lv2:requiredFeature urid:map ;
-	ui:ui <http://github.com/geraldmwangi/GuitarMidi-LV2#ui> ;
+	#<GUITARMIDI_UI_REFERENCE>
 	lv2:port [
 		a lv2:AudioPort ,
 			lv2:InputPort ;
@@ -53,23 +50,23 @@
         lv2:index 2 ;
         lv2:symbol "gain" ;
         lv2:name "Input Gain (dB)" ;
-        lv2:default 0.0 ;
+        lv2:default 28.0 ;
         lv2:minimum -20.0 ;
-        lv2:maximum 20.0 ;
+        lv2:maximum 40.0 ;
 	],[
 		a lv2:InputPort, lv2:ControlPort ;
         lv2:index 3 ;
         lv2:symbol "expressivity" ;
         lv2:name "Expressivity Range (dB)" ;
-        lv2:default 7.0 ;
-        lv2:minimum -3.0 ;
+        lv2:default 3.0 ;
+        lv2:minimum 0.0 ;
         lv2:maximum 20.0 ;
 	],[
 		a lv2:InputPort, lv2:ControlPort ;
         lv2:index 4 ;
         lv2:symbol "onsetsmoothing" ;
         lv2:name "Onset Smoothing" ;
-        lv2:default 0.8 ;
+        lv2:default 0.3 ;
         lv2:minimum 0.0 ;
         lv2:maximum 0.9 ;
 	],[
@@ -85,7 +82,7 @@
         lv2:index 6 ;
         lv2:symbol "onsetconfthr" ;
         lv2:name "Onset Confidence Threshold" ;
-        lv2:default 0.80 ;
+        lv2:default 0.95 ;
         lv2:minimum 0.00 ;
         lv2:maximum 0.99 ;
 	],[
@@ -93,7 +90,7 @@
         lv2:index 7 ;
         lv2:symbol "offsetconfthr" ;
         lv2:name "Offset Confidence Threshold" ;
-        lv2:default 0.10 ;
+        lv2:default 0.3 ;
         lv2:minimum 0.00 ;
         lv2:maximum 0.99 ;
 	],[
@@ -101,7 +98,7 @@
         lv2:index 8 ;
         lv2:symbol "onsetenthr" ;
         lv2:name "Onset Energy Threshold (dB)" ;
-        lv2:default 0.70 ;
+        lv2:default -18.0 ;
         lv2:minimum -20.00 ;
         lv2:maximum 3.00 ;
 	],[
@@ -112,56 +109,15 @@
         lv2:default -18.00 ;
         lv2:minimum -20.00 ;
         lv2:maximum 3.00 ;
-	], [
-		a lv2:AudioPort ,
-			lv2:OutputPort ;
-		lv2:index 10 ;
-		lv2:symbol "out" ;
-		lv2:name "Out"
-	],[
-		a lv2:InputPort, lv2:ControlPort ;
-        lv2:index 11 ;
-        lv2:symbol "noteselect" ;
-        lv2:name "Selected Note" ;
-        lv2:portProperty lv2:integer ;
-        lv2:default 0 ;
-        lv2:minimum 0 ;
-        lv2:maximum 36 ;
-	],[
-		a lv2:InputPort, lv2:ControlPort ;
-        lv2:index 12 ;
-        lv2:symbol "harmonicselect" ;
-        lv2:name "Selected Harmonic" ;
-        lv2:portProperty lv2:integer ;
-        lv2:default 0 ;
-        lv2:minimum 0 ;
-        lv2:maximum 4 ;
-        # Custom labels for the GUI slider/dropdown:
-        lv2:scalePoint [ rdfs:label "1st Harmonic" ; rdf:value 0 ] ;
-        lv2:scalePoint [ rdfs:label "2nd Harmonic" ; rdf:value 1 ] ;
-        lv2:scalePoint [ rdfs:label "3rd Harmonic" ; rdf:value 2 ] ;
-        lv2:scalePoint [ rdfs:label "4th Harmonic" ; rdf:value 3 ] ;
-        lv2:scalePoint [ rdfs:label "Sum of All" ; rdf:value 4 ] ;
-	], [
-		a lv2:AudioPort ,
-			lv2:OutputPort ;
-		lv2:index 13 ;
-		lv2:symbol "filterout" ;
-		lv2:name "Filter Out"
     ], [
         a lv2:OutputPort, atom:AtomPort ;
         atom:bufferType atom:Sequence ;
         atom:supports atom:Vector ;
         rsz:minimumSize 768 ;
-        lv2:index 14 ;
+        lv2:index 10 ;
         lv2:symbol "debugdata" ;
-        lv2:name "Note Debug Data"
+        lv2:name "Note Debug Data" ;
 	] .
 
-<http://github.com/geraldmwangi/GuitarMidi-LV2#ui>
-    ui:portNotification [
-        ui:plugin <http://github.com/geraldmwangi/GuitarMidi-LV2> ;
-        lv2:symbol "debugdata" ;
-        ui:protocol atom:eventTransfer
-    ] .
+#<GUITARMIDI_UI_PORT_NOTIFICATION>
 
