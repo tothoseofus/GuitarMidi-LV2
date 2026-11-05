@@ -39,7 +39,7 @@ jobs:
 
     - name: Restore ARM64 Compilation Cache
       id: arm64-cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: ~/.cache/ccache
         key: arm64-ccache-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -168,7 +168,7 @@ jobs:
         ccache --show-config | grep -E 'cache_dir|max_size'
 
     - name: Save ARM64 Compilation Cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: ~/.cache/ccache
         key: arm64-ccache-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
