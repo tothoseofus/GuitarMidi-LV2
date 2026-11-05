@@ -224,7 +224,7 @@ jobs:
       - name: Upload deb artifact
         uses: actions/upload-artifact@v6
         with:
-          name: deb-${{ matrix.ubuntu-version }}
+          name: deb-${{ matrix.ubuntu-version }}-${{ env.BUILD_ID }}
           path: build/debian/*.deb
           if-no-files-found: error
 
