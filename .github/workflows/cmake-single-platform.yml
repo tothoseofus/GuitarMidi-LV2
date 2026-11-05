@@ -1,6 +1,8 @@
 name: Build and Test LV2 Plugin
 
 on:
+  push:
+    branches: [ "master", "main" ]
   workflow_dispatch: {}
 
 permissions:
