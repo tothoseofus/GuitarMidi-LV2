@@ -9,16 +9,33 @@ jobs:
   build-windows-x64:
     runs-on: windows-2022
 
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_VERSION: "guitarmidi-windows-x64-v1"
+
     steps:
       - name: Checkout repository recursively
         uses: actions/checkout@v6
         with:
           submodules: recursive
 
+      - name: Set Build Version
+        shell: pwsh
+        run: |
+          $shortSha = (git rev-parse --short=7 HEAD).Trim()
+          $buildId = "build$($env:GITHUB_RUN_NUMBER)-$shortSha"
+          "BUILD_ID=$buildId" >> $env:GITHUB_ENV
+          Write-Host "Build version: $buildId"
+
       - name: Set up MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
+
+      - name: Set up Windows Compilation Cache
+        uses: mozilla-actions/sccache-action@v0.0.11
+        with:
+          version: "v0.19.0"
 
       - name: Download and Extract Zita-Resampler
         shell: pwsh
@@ -108,17 +125,24 @@ jobs:
 
           Write-Host "Compiling Zita-Resampler with MSVC..."
 
-          cl /nologo /EHsc /O2 /std:c++17 /MD `
-            /D_USE_MATH_DEFINES `
-            /I. /I.. `
-            /c `
-            resampler.cc `
-            resampler-table.cc `
-            cresampler.cc `
-            vresampler.cc
+          
+          $sourceFiles = @(
+              "resampler.cc",
+              "resampler-table.cc",
+              "cresampler.cc",
+              "vresampler.cc"
+          )
 
-          if ($LASTEXITCODE -ne 0) {
-              throw "Zita-Resampler compilation failed"
+          foreach ($sourceFile in $sourceFiles) {
+              sccache cl /nologo /EHsc /O2 /std:c++17 /MD `
+                /D_USE_MATH_DEFINES `
+                /I. /I.. `
+                /c `
+                $sourceFile
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Zita-Resampler compilation failed: $sourceFile"
+              }
           }
 
           Write-Host "Creating static library..."
@@ -267,6 +291,7 @@ jobs:
           Write-Host "Configuring GuitarMidi for Windows x64..."
           Write-Host "Include directory: $includeDir"
 
+          
           cmake -S . -B build-windows `
             -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
@@ -275,8 +300,11 @@ jobs:
             -DGUITARMIDI_SYSEX_DIAGNOSTICS=OFF `
             -DGUITARMIDI_INFERENCE_DIAGNOSTICS=OFF `
             -DTFLITE_ENABLE_XNNPACK=ON `
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
             "-DCMAKE_CXX_FLAGS=/I`"$includeDir`"" `
             "-DCMAKE_C_FLAGS=/I`"$includeDir`""
+
 
           if ($LASTEXITCODE -ne 0) {
             throw "Windows CMake configuration failed"
@@ -301,6 +329,11 @@ jobs:
 
           Write-Host "Windows GuitarMidi build completed."
 
+      - name: Show Windows Compilation Cache Statistics
+        if: always()
+        shell: pwsh
+        run: |
+          sccache --show-stats
 
       - name: Package and Verify GuitarMidi Windows LV2
         shell: pwsh
@@ -383,10 +416,9 @@ jobs:
           Get-ChildItem $bundle -Recurse -File |
             Select-Object FullName
 
-
       - name: Upload Windows LV2 Bundle
         uses: actions/upload-artifact@v6
         with:
-          name: guitarmidi-windows-lv2
-          path: stage/guitarmidi.lv2/
+          name: guitarmidi-windows-x64-${{ env.BUILD_ID }}
+          path: stage/
           if-no-files-found: error

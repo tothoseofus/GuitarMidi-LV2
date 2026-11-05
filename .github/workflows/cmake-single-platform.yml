@@ -19,10 +19,39 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
+      - name: Set Build Version
+        shell: bash
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          BUILD_ID="build${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "Build version: $BUILD_ID"
+          
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential pkg-config lv2-dev libzita-resampler-dev fakeroot dpkg-dev debhelper libx11-dev libcairo2-dev
+          sudo apt-get install -y cmake build-essential ccache pkg-config lv2-dev libzita-resampler-dev fakeroot dpkg-dev debhelper libx11-dev libcairo2-dev
+
+      - name: Configure Linux Compilation Cache
+        shell: bash
+        run: |
+          echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+          echo "CCACHE_MAXSIZE=2G" >> "$GITHUB_ENV"
+          echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
+          ccache --version
+
+      - name: Restore Linux Compilation Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-ccache-v1-${{ matrix.ubuntu-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            linux-ccache-v1-${{ matrix.ubuntu-version }}-
+      
+      - name: Reset Linux Compilation Cache Statistics
+        shell: bash
+        run: |
+          ccache --zero-stats
 
       - name: Configure CMake
         shell: bash
@@ -41,11 +70,26 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_DEB=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DZITA_RESAMPLER_INCLUDE_DIR=/usr/include \
             -DZITA_RESAMPLER_LIB="$ZITA_LIB"
 
       - name: Build
         run: cmake --build build -- -j$(nproc)
+      
+      - name: Show Linux Compilation Cache Statistics
+        shell: bash
+        run: |
+          echo "Linux compilation cache statistics:"
+          ccache --show-stats
+          ccache --show-config | grep -E 'cache_dir|max_size'
+
+      - name: Save Linux Compilation Cache
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-ccache-v1-${{ matrix.ubuntu-version }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Build Debian package
         run: |
@@ -53,23 +97,40 @@ jobs:
           (cd build && cpack -G DEB -C Release) || (echo "cpack failed" && exit 1)
 
       - name: Tag and list generated Debian packages
+        shell: bash
         run: |
+          set -euo pipefail
+
           UBUNTU_TAG_RAW="${{ matrix.ubuntu-version }}"
           UBUNTU_TAG=$(echo "$UBUNTU_TAG_RAW" | sed -E 's/ubuntu-([0-9]+)\.([0-9]+)/ubuntu\1\2/')
-          set -e
-          for f in $(find build -name '*.deb'); do
+
+          shopt -s nullglob
+          packages=(build/debian/*.deb)
+
+          if (( ${#packages[@]} == 0 )); then
+            echo "ERROR: No Debian packages found"
+            exit 1
+          fi
+
+          for f in "${packages[@]}"; do
             dir=$(dirname "$f")
             base=$(basename "$f" .deb)
+
             if [[ "$base" =~ _([^_]+)$ ]]; then
               arch_suffix="_${BASH_REMATCH[1]}"
               name_prefix=${base%${arch_suffix}}
-              newname="${name_prefix}_${UBUNTU_TAG}${arch_suffix}.deb"
+
+              newname="${name_prefix}-${BUILD_ID}_${UBUNTU_TAG}${arch_suffix}.deb"
+
               mv "$f" "$dir/$newname"
+              echo "Created: $newname"
+            else
+              echo "ERROR: Unexpected Debian filename: $base"
+              exit 1
             fi
           done
-          find build -name '*.deb' -print
 
-
+          find build/debian -name '*.deb' -print
       - name: Verify Debian LV2 Packages
         shell: bash
         run: |
@@ -111,7 +172,7 @@ jobs:
             test -f "$BUNDLE/modgui.ttl"
             test -d "$BUNDLE/modgui"
 
-            if ! find "$BUNDLE/modgui" -type f | grep -q .; then
+            if [[ -z "$(find "$BUNDLE/modgui" -type f -print -quit)" ]]; then
               echo "ERROR: MOD GUI directory is empty"
               exit 1
             fi
@@ -163,7 +224,7 @@ jobs:
       - name: Upload deb artifact
         uses: actions/upload-artifact@v6
         with:
-          name: deb-${{ matrix.ubuntu-version }}
+          name: deb-${{ matrix.ubuntu-version }}-${{ env.BUILD_ID }}
           path: build/debian/*.deb
           if-no-files-found: error
 
