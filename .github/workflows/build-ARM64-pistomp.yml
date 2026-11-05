@@ -240,6 +240,6 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: guitarmidi-pistomp-${{ env.BUILD_ID }}
-        path: install_dist/guitarmidi.lv2/
+        path: install_dist/
         if-no-files-found: error
 
