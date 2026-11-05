@@ -236,16 +236,10 @@ jobs:
         echo "Final bundle contents:"
         find "$BUNDLE" -type f | sort
    
-    - name: Package Bundle
-      shell: bash
-      run: |
-        cd install_dist
-        zip -r "guitarmidi-pistomp-${BUILD_ID}.zip" guitarmidi.lv2
-
     - name: Upload Artifact
       uses: actions/upload-artifact@v6
       with:
         name: guitarmidi-pistomp-${{ env.BUILD_ID }}
-        path: install_dist/guitarmidi-pistomp-${{ env.BUILD_ID }}.zip
+        path: install_dist/guitarmidi.lv2/
         if-no-files-found: error
 
