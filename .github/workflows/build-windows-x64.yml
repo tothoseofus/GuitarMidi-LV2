@@ -416,26 +416,9 @@ jobs:
           Get-ChildItem $bundle -Recurse -File |
             Select-Object FullName
 
-      - name: Create Versioned Windows Package
-        shell: pwsh
-        run: |
-          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi.lv2"
-          $zip = "$env:GITHUB_WORKSPACE/stage/guitarmidi-windows-x64-$env:BUILD_ID.zip"
-
-          Compress-Archive `
-            -Path $bundle `
-            -DestinationPath $zip `
-            -CompressionLevel Optimal
-
-          if (-not (Test-Path $zip)) {
-            throw "Windows package creation failed"
-          }
-
-          Write-Host "Created: $zip"
-
       - name: Upload Windows LV2 Bundle
         uses: actions/upload-artifact@v6
         with:
           name: guitarmidi-windows-x64-${{ env.BUILD_ID }}
-          path: stage/guitarmidi-windows-x64-${{ env.BUILD_ID }}.zip
+          path: stage/guitarmidi.lv2/
           if-no-files-found: error
