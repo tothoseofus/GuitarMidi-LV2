@@ -56,6 +56,14 @@ typedef enum
 } PortIndex;
 
 #ifdef WITH_AUDIO_OUTPUT
+static constexpr uint32_t ENABLED_PORT = 15;
+#else
+static constexpr uint32_t ENABLED_PORT = 11;
+#endif
+
+
+
+#ifdef WITH_AUDIO_OUTPUT
 static constexpr uint32_t DEBUG_DATA_PORT = 14;
 #else
 static constexpr uint32_t DEBUG_DATA_PORT = 10;
@@ -67,7 +75,8 @@ struct GuitarMidiPlugin
 	FretBoardAPI *fretboard;
 	LV2_Atom_Sequence *debug_output = nullptr;
 	LV2_Atom_Forge debug_forge;
-	float debug_tick = 0.0f;
+	const float *enabled = nullptr;  // lv2:enabled, defaults to active when unconnected
+    float debug_tick = 0.0f;
 	uint64_t debug_samples_since_update = 0;
 	uint64_t debug_update_interval_samples = 2400;
 };
@@ -174,7 +183,12 @@ connect_port(LV2_Handle instance,
 {
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
 	FretBoardAPI *fretboard = plugin->fretboard;
-	if (port == DEBUG_DATA_PORT)
+	if (port == ENABLED_PORT)
+{
+    plugin->enabled = static_cast<const float *>(data);
+    return;
+}
+if (port == DEBUG_DATA_PORT)
 	{
 		plugin->debug_output = (LV2_Atom_Sequence *)data;
 		return;
@@ -256,7 +270,33 @@ run(LV2_Handle instance, uint32_t n_samples)
 	timespec start = timer_start();
 #endif
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
-	plugin->fretboard->process(n_samples);
+	// Stage 1 diagnostic: allow MOD-host to suspend expensive processing
+    // without destroying the already-initialised TFLite/XNNPACK interpreter.
+    if (plugin->enabled && *plugin->enabled <= 0.0f)
+    {
+        // Still supply valid empty output atom sequences on every run().
+        auto *midi = dynamic_cast<GuitarMidi::MidiOutputLV2 *>(
+            plugin->fretboard->getMidiOutput());
+        if (midi)
+        {
+            midi->initializeSequence();
+            midi->finalizeSequence();
+        }
+
+        if (plugin->debug_output)
+        {
+            lv2_atom_forge_set_buffer(
+                &plugin->debug_forge,
+                reinterpret_cast<uint8_t *>(plugin->debug_output),
+                plugin->debug_output->atom.size);
+            LV2_Atom_Forge_Frame frame;
+            if (lv2_atom_forge_sequence_head(&plugin->debug_forge, &frame, 0))
+                lv2_atom_forge_pop(&plugin->debug_forge, &frame);
+        }
+        return;
+    }
+
+    plugin->fretboard->process(n_samples);
 	if (plugin->debug_output)
 	{
 		plugin->debug_samples_since_update += n_samples;
