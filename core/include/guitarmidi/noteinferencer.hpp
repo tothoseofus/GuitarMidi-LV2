@@ -82,6 +82,10 @@ namespace GuitarMidi{
         bool initialize(const std::string& bundle_path);
         /** Finalizes model inference and releases inference resources. */
         void finalize();
+
+        void setBypassed(bool bypassed);
+        void discardPendingModelOutput();
+
         /** Returns the MIDI output used for inferred notes. */
         GuitarMidiOutput* getMidiOutput()
         {
