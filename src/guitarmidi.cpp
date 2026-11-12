@@ -76,6 +76,7 @@ struct GuitarMidiPlugin
 	LV2_Atom_Sequence *debug_output = nullptr;
 	LV2_Atom_Forge debug_forge;
 	const float *enabled = nullptr;  // lv2:enabled, defaults to active when unconnected
+    bool last_enabled = true;  // LV2 host bypass transition state
     float debug_tick = 0.0f;
 	uint64_t debug_samples_since_update = 0;
 	uint64_t debug_update_interval_samples = 2400;
@@ -270,18 +271,44 @@ run(LV2_Handle instance, uint32_t n_samples)
 	timespec start = timer_start();
 #endif
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
-	// Stage 1 diagnostic: allow MOD-host to suspend expensive processing
-    // without destroying the already-initialised TFLite/XNNPACK interpreter.
-    if (plugin->enabled && *plugin->enabled <= 0.0f)
+    // Stage 2 test: one All Notes Off burst on the enabled -> bypassed
+    // transition. Deliberately DO NOT send an additional burst on resume.
+    const bool enabled = !plugin->enabled || *plugin->enabled > 0.0f;
+    auto *midi = static_cast<GuitarMidi::MidiOutputLV2 *>(
+        plugin->fretboard->getMidiOutput());
+
+    if (!enabled)
     {
-        // Still supply valid empty output atom sequences on every run().
-        auto *midi = dynamic_cast<GuitarMidi::MidiOutputLV2 *>(
-            plugin->fretboard->getMidiOutput());
+        // Initialise a valid MIDI output sequence for every bypassed block.
+        // On the first bypassed block, send CC123 on all 16 channels.
         if (midi)
         {
             midi->initializeSequence();
+            if (plugin->last_enabled)
+            {
+                for (uint8_t channel = 0; channel < 16; ++channel)
+                {
+                    uint8_t all_notes_off[3] = {
+                        static_cast<uint8_t>(0xB0 | channel), 123, 0
+                    };
+                    midi->sendMidiMessage(all_notes_off, 0);
+                }
+            }
             midi->finalizeSequence();
         }
+
+        if (plugin->last_enabled)
+        {
+            // Separate from note-release policy: bypass always resets
+            // detector and note ownership (including future Hold/Sustain).
+            plugin->fretboard->setBypassed(true);
+        }
+        else
+        {
+            // Drain any late pre-bypass output; do not process audio.
+            plugin->fretboard->discardPendingModelOutput();
+        }
+        plugin->last_enabled = false;
 
         if (plugin->debug_output)
         {
@@ -294,6 +321,15 @@ run(LV2_Handle instance, uint32_t n_samples)
                 lv2_atom_forge_pop(&plugin->debug_forge, &frame);
         }
         return;
+    }
+
+    if (!plugin->last_enabled)
+    {
+        // Drain stale inference results BEFORE allowing new inference.
+        // Do not send CC123 on re-enable in this test build.
+        plugin->fretboard->discardPendingModelOutput();
+        plugin->fretboard->setBypassed(false);
+        plugin->last_enabled = true;
     }
 
     plugin->fretboard->process(n_samples);
