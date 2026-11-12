@@ -174,7 +174,11 @@ class ModelInferencer {
         std::atomic<uint64_t> empty_wakeups{0};
         std::atomic<uint64_t> inference_errors{0};
 
-std::atomic<size_t> max_input_queue_depth{0};
+        std::atomic<size_t> max_input_queue_depth{0};
+
+        //bypass state variables
+        std::atomic<bool> m_processing_enabled{true};
+        std::atomic<uint64_t> m_processing_epoch{0};
 
         /** Runs model inference on frames received by the input ring buffer. */
         void inferencing_loop(const std::string& bundle_path);
@@ -193,5 +197,7 @@ std::atomic<size_t> max_input_queue_depth{0};
         void add_audio_input(const float* input, int num_frames);
         /** Retrieves inferred note activations for a block of frames. */
         bool get_model_output(float* output, int num_frames);
+        /** Sets the bypass state*/
+        void setProcessingEnabled(bool enabled);
 };
 } // namespace GuitarMidi

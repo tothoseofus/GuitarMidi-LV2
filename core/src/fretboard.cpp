@@ -88,6 +88,16 @@ void FretBoard::finalize()
     m_filterbank.reset();
 }
 
+void FretBoard::setBypassed(bool bypassed)
+{
+    m_noteinferencer.setBypassed(bypassed);
+}
+
+void FretBoard::discardPendingModelOutput()
+{
+    m_noteinferencer.discardPendingModelOutput();
+}
+
 void FretBoard::process(int nsamples)
 {
     // prepare the output stream
