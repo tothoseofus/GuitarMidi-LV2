@@ -63,6 +63,50 @@ namespace GuitarMidi
             m_midioutput->finalizeSequence();
     }
 
+    void NoteInferencer::discardPendingModelOutput()
+    {
+        float discarded[NUM_NOTES];
+
+        while (m_model.get_model_output(discarded, 1))
+        {
+        }
+    }
+
+    void NoteInferencer::setBypassed(bool bypassed)
+    {
+        if (bypassed)
+        {
+            m_model.setProcessingEnabled(false);
+
+            for (int i = 0; i < NUM_NOTES; ++i)
+            {
+                m_note_on[i].store(false, std::memory_order_relaxed);
+
+                smoothed_onsetoutput[i] = 0.0f;
+                smoothed_offsetoutput[i] = 0.0f;
+                smoothed_noteenergies[i] = 0.0f;
+                smoothed_offsetnoteenergies[i] = 0.0f;
+
+                m_momentary_confidences[i] = 0.0f;
+                m_momentary_noteenergies[i] = 0.0f;
+            }
+
+            m_frames = 0;
+
+    #ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
+            m_diagnostic_counter = 0;
+    #endif
+
+            discardPendingModelOutput();
+        }
+        else
+        {
+            discardPendingModelOutput();
+            m_frames = 0;
+            m_model.setProcessingEnabled(true);
+        }
+    }
+
     void NoteInferencer::setAudioInputBuffer(AudioBuffer2D input)
     {
         m_audiobuffer = input;
