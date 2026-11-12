@@ -165,6 +165,9 @@ public:
      */
     virtual void finalize();
 
+    void setBypassed(bool bypassed) override;
+    void discardPendingModelOutput() override;
+
     /**
      * @brief process audio with the filterbank and noteinferencer. The audio is processed in blocks of the size of the host buffer size. 
      * If the samplerate of the host is different from the native samplerate of the plugin, the audio is resampled before being processed by the filterbank and noteinferencer. 

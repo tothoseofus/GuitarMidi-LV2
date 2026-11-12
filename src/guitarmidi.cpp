@@ -56,6 +56,14 @@ typedef enum
 } PortIndex;
 
 #ifdef WITH_AUDIO_OUTPUT
+static constexpr uint32_t ENABLED_PORT = 15;
+#else
+static constexpr uint32_t ENABLED_PORT = 11;
+#endif
+
+
+
+#ifdef WITH_AUDIO_OUTPUT
 static constexpr uint32_t DEBUG_DATA_PORT = 14;
 #else
 static constexpr uint32_t DEBUG_DATA_PORT = 10;
@@ -67,7 +75,9 @@ struct GuitarMidiPlugin
 	FretBoardAPI *fretboard;
 	LV2_Atom_Sequence *debug_output = nullptr;
 	LV2_Atom_Forge debug_forge;
-	float debug_tick = 0.0f;
+	const float *enabled = nullptr;  // lv2:enabled, defaults to active when unconnected
+    bool last_enabled = true;  // LV2 host bypass transition state
+    float debug_tick = 0.0f;
 	uint64_t debug_samples_since_update = 0;
 	uint64_t debug_update_interval_samples = 2400;
 };
@@ -174,7 +184,12 @@ connect_port(LV2_Handle instance,
 {
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
 	FretBoardAPI *fretboard = plugin->fretboard;
-	if (port == DEBUG_DATA_PORT)
+	if (port == ENABLED_PORT)
+{
+    plugin->enabled = static_cast<const float *>(data);
+    return;
+}
+if (port == DEBUG_DATA_PORT)
 	{
 		plugin->debug_output = (LV2_Atom_Sequence *)data;
 		return;
@@ -256,7 +271,68 @@ run(LV2_Handle instance, uint32_t n_samples)
 	timespec start = timer_start();
 #endif
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
-	plugin->fretboard->process(n_samples);
+    // Stage 2 test: one All Notes Off burst on the enabled -> bypassed
+    // transition. Deliberately DO NOT send an additional burst on resume.
+    const bool enabled = !plugin->enabled || *plugin->enabled > 0.0f;
+    auto *midi = static_cast<GuitarMidi::MidiOutputLV2 *>(
+        plugin->fretboard->getMidiOutput());
+
+    if (!enabled)
+    {
+        // Initialise a valid MIDI output sequence for every bypassed block.
+        // On the first bypassed block, send CC123 on all 16 channels.
+        if (midi)
+        {
+            midi->initializeSequence();
+            if (plugin->last_enabled)
+            {
+                for (uint8_t channel = 0; channel < 16; ++channel)
+                {
+                    uint8_t all_notes_off[3] = {
+                        static_cast<uint8_t>(0xB0 | channel), 123, 0
+                    };
+                    midi->sendMidiMessage(all_notes_off, 0);
+                }
+            }
+            midi->finalizeSequence();
+        }
+
+        if (plugin->last_enabled)
+        {
+            // Separate from note-release policy: bypass always resets
+            // detector and note ownership (including future Hold/Sustain).
+            plugin->fretboard->setBypassed(true);
+        }
+        else
+        {
+            // Drain any late pre-bypass output; do not process audio.
+            plugin->fretboard->discardPendingModelOutput();
+        }
+        plugin->last_enabled = false;
+
+        if (plugin->debug_output)
+        {
+            lv2_atom_forge_set_buffer(
+                &plugin->debug_forge,
+                reinterpret_cast<uint8_t *>(plugin->debug_output),
+                plugin->debug_output->atom.size);
+            LV2_Atom_Forge_Frame frame;
+            if (lv2_atom_forge_sequence_head(&plugin->debug_forge, &frame, 0))
+                lv2_atom_forge_pop(&plugin->debug_forge, &frame);
+        }
+        return;
+    }
+
+    if (!plugin->last_enabled)
+    {
+        // Drain stale inference results BEFORE allowing new inference.
+        // Do not send CC123 on re-enable in this test build.
+        plugin->fretboard->discardPendingModelOutput();
+        plugin->fretboard->setBypassed(false);
+        plugin->last_enabled = true;
+    }
+
+    plugin->fretboard->process(n_samples);
 	if (plugin->debug_output)
 	{
 		plugin->debug_samples_since_update += n_samples;
