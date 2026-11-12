@@ -48,6 +48,12 @@
                 continue;
             }
 
+            // Record the current bypass generation for this inference.
+            const uint64_t inference_epoch =
+                m_processing_epoch.load(std::memory_order_acquire);
+            if (!m_processing_enabled.load(std::memory_order_acquire))
+                continue;  // Discard queued input without invoking XNNPACK.
+
             if (m_interpreter->Invoke() != kTfLiteOk)
             {
             #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
@@ -59,6 +65,11 @@
                 break;
             }
             
+            // Discard any result invalidated by a bypass transition.
+            if (!m_processing_enabled.load(std::memory_order_acquire) ||
+                inference_epoch != m_processing_epoch.load(std::memory_order_acquire))
+                continue;
+
             #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
             inferences_completed.fetch_add(
                 1, std::memory_order_relaxed);
@@ -300,6 +311,9 @@
         const float* input,
         int num_frames)
     {
+        if (!m_processing_enabled.load(std::memory_order_acquire))
+            return;
+
         if (!input_ready.valid() ||
             stop_thread.load(std::memory_order_relaxed)) {
             return;
@@ -362,4 +376,16 @@
         int num_frames)
     {
         return model_output_buffer.get_latest_data(output);
+    }
+    void GuitarMidi::ModelInferencer::setProcessingEnabled(bool enabled)
+    {
+        if (!enabled)
+        {
+            m_processing_enabled.store(false, std::memory_order_release);
+            m_processing_epoch.fetch_add(1, std::memory_order_acq_rel);
+        }
+        else
+        {
+            m_processing_enabled.store(true, std::memory_order_release);
+        }
     }
