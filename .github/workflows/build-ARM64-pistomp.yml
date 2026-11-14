@@ -1,8 +1,7 @@
 name: Build GuitarMidi for piStomp v3
 
 on:
-  push:
-    branches: [ "master", "main" ]
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -178,7 +177,7 @@ jobs:
       run: |
         set -euo pipefail
 
-        BUNDLE="install_dist/guitarmidi.lv2"
+        BUNDLE="install_dist/guitarmidi-pistomp.lv2"
 
         echo "Verifying piStomp ARM64 LV2 bundle..."
 

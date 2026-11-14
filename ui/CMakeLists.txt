@@ -18,4 +18,4 @@ target_link_libraries(guitarmidi_ui PRIVATE
     ${CAIRO_LIBRARIES})
 
 install(TARGETS guitarmidi_ui
-        DESTINATION guitarmidi.lv2)
+        DESTINATION guitarmidi-pistomp.lv2)

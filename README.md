@@ -147,7 +147,7 @@ Precompiled Raspberry Pi ARM64 builds are produced using GitHub Actions.
 
 Check the [GitHub Releases](https://github.com/tothoseofus/GuitarMidi-LV2/releases) page for available packages.
 
-For a manual installation, the compiled `guitarmidi.lv2` bundle must be placed in an LV2 directory accessible to the host. Installation and restart requirements depend on the piStompOS/MODEP configuration.
+For a manual installation, the compiled `guitarmidi-pistomp.lv2` bundle must be placed in an LV2 directory accessible to the host. Installation and restart requirements depend on the piStompOS/MODEP configuration.
 
 ### Other platforms
 

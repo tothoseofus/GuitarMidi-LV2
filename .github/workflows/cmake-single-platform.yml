@@ -1,8 +1,7 @@
 name: Build and Test LV2 Plugin
 
 on:
-  push:
-    branches: [ "master", "main" ]
+  workflow_call:
   workflow_dispatch: {}
 
 permissions:
@@ -156,7 +155,7 @@ jobs:
 
             # Locate the installed LV2 bundle
             BUNDLE=$(find "$TEMP_DIR" \
-              -type d -name guitarmidi.lv2 -print -quit)
+              -type d -name guitarmidi-pistomp.lv2 -print -quit)
 
             if [[ -z "$BUNDLE" ]]; then
               echo "ERROR: LV2 bundle missing from $deb"

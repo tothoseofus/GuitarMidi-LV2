@@ -30,8 +30,8 @@ set_target_properties(guitarmidi PROPERTIES
 # RUNTIME is required for Windows DLLs.
 # LIBRARY is required for Linux shared libraries.
 install(TARGETS guitarmidi
-    RUNTIME DESTINATION guitarmidi.lv2
-    LIBRARY DESTINATION guitarmidi.lv2
+    RUNTIME DESTINATION guitarmidi-pistomp.lv2
+    LIBRARY DESTINATION guitarmidi-pistomp.lv2
 )
 
 # --------------------------------------------------
@@ -120,7 +120,7 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/manifest.ttl"
     "${CMAKE_CURRENT_BINARY_DIR}/guitarmidi.ttl"
     "${CMAKE_SOURCE_DIR}/python/neuralnetmodelling/guitarmidi.tflite"
-    DESTINATION guitarmidi.lv2
+    DESTINATION guitarmidi-pistomp.lv2
 )
 
 # --------------------------------------------------
@@ -151,10 +151,10 @@ endif()
 
 install(FILES
     "${MODGUI_SOURCE}/modgui.ttl"
-    DESTINATION guitarmidi.lv2
+    DESTINATION guitarmidi-pistomp.lv2
 )
 
 install(DIRECTORY
     "${MODGUI_SOURCE}/modgui/"
-    DESTINATION guitarmidi.lv2/modgui
+    DESTINATION guitarmidi-pistomp.lv2/modgui
 )
