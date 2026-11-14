@@ -170,6 +170,14 @@ jobs:
             throw "SpeexDSP resampling regression failed"
           }
 
+      - name: Test LV2 MIDI timestamp bounds
+        shell: pwsh
+        run: |
+          ctest --test-dir build-windows --output-on-failure -R midi_timestamp_regression
+          if ($LASTEXITCODE -ne 0) {
+            throw "LV2 MIDI timestamp regression failed"
+          }
+
       - name: Show Windows Compilation Cache Statistics
         if: always()
         shell: pwsh
