@@ -17,6 +17,7 @@
  * Boston, MA  02110-1301  USA
  */
 #include <guitarmidi/fretboard.hpp>
+#include <guitarmidi/resample_stream.hpp>
 #include <omp.h>
 #include <algorithm>
 
@@ -138,37 +139,20 @@ void FretBoard::process(int nsamples)
 
 void FretBoard::process_resampled(int nsamples, int pos)
 {
-    // Convert host-rate samples into bounded native-rate chunks.
-    // SpeexDSP reports independent input-consumed and output-produced counts.
-    spx_uint32_t consumed_total = 0;
-    while (consumed_total < static_cast<spx_uint32_t>(nsamples))
-    {
-        spx_uint32_t input_length =
-            static_cast<spx_uint32_t>(nsamples) - consumed_total;
-        spx_uint32_t output_length = BUFFER_SIZE;
-        const int error = speex_resampler_process_float(
-            m_resampler, 0, m_input_buffer + pos + consumed_total,
-            &input_length, m_resampled_buffer, &output_length);
-
-        if (error != RESAMPLER_ERR_SUCCESS)
+    // Exercise the same streaming driver verified by resampling_regression.
+    const bool ok = resampleStreamingBlock(
+        m_resampler, m_input_buffer + pos, static_cast<std::uint32_t>(nsamples),
+        m_resampled_buffer, BUFFER_SIZE,
+        [this, pos](const float*, std::uint32_t produced, std::uint32_t consumed)
         {
-            // Never spin indefinitely in a real-time callback on an error.
-            break;
-        }
-
-        consumed_total += input_length;
-
-        if (output_length > 0)
-        {
-            // MIDI event positions remain in the host block's sample domain.
-            const int host_pos = pos + static_cast<int>(consumed_total) - 1;
-            process_48k(static_cast<int>(output_length),
-                        host_pos < pos ? pos : host_pos);
-        }
-
-        if (input_length == 0 && output_length == 0)
-            break;  // No progress: avoid a real-time infinite loop.
-    }
+            // Converted output is already in the preallocated member buffer.
+            // MIDI offsets in the resampled path still require runtime validation.
+            const int host_pos = pos + (consumed ? static_cast<int>(consumed) - 1 : 0);
+            process_48k(static_cast<int>(produced), host_pos);
+            return true;
+        });
+    if (!ok)
+        g_logger.error("SpeexDSP streaming conversion failed");
 }
 
 void FretBoard::process_48k(int nsamples, int host_pos)
