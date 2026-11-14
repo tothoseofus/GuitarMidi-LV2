@@ -20,38 +20,33 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# Platform-specific Zita-Resampler library
-
-set(ZITA_RESAMPLER_INCLUDE_DIR
-    "${CMAKE_SOURCE_DIR}/deps/include"
-    CACHE PATH "zita-resampler include directory"
+# Build only the BSD-licensed SpeexDSP resampler rather than the full DSP suite.
+# Pin the upstream release for reproducible ARM64, Windows, and Linux builds.
+include(FetchContent)
+FetchContent_Declare(guitarmidi_speexdsp
+    GIT_REPOSITORY https://github.com/xiph/speexdsp.git
+    GIT_TAG SpeexDSP-1.2.1
+    GIT_SHALLOW TRUE
 )
-
-if(WIN32)
-    set(ZITA_RESAMPLER_LIB
-        "${CMAKE_SOURCE_DIR}/deps/lib/zita-resampler.lib"
-        CACHE FILEPATH "zita-resampler static library"
-    )
-else()
-    set(ZITA_RESAMPLER_LIB
-        "${CMAKE_SOURCE_DIR}/deps/lib/libzita-resampler.a"
-        CACHE FILEPATH "zita-resampler static library"
-    )
+FetchContent_GetProperties(guitarmidi_speexdsp)
+if(NOT guitarmidi_speexdsp_POPULATED)
+    FetchContent_Populate(guitarmidi_speexdsp)
 endif()
 
-if(NOT EXISTS "${ZITA_RESAMPLER_LIB}")
-    message(FATAL_ERROR
-        "zita-resampler library not found: ${ZITA_RESAMPLER_LIB}")
-endif()
+add_library(guitarmidi_speex_resampler STATIC
+    "${guitarmidi_speexdsp_SOURCE_DIR}/libspeexdsp/resample.c")
+set_target_properties(guitarmidi_speex_resampler PROPERTIES
+    POSITION_INDEPENDENT_CODE ON)
+target_include_directories(guitarmidi_speex_resampler PUBLIC
+    "${guitarmidi_speexdsp_SOURCE_DIR}/include"
+    "${guitarmidi_speexdsp_SOURCE_DIR}/libspeexdsp")
+target_compile_definitions(guitarmidi_speex_resampler PUBLIC
+    OUTSIDE_SPEEX RANDOM_PREFIX=guitarmidi FLOATING_POINT)
 
-if(NOT EXISTS
-   "${ZITA_RESAMPLER_INCLUDE_DIR}/zita-resampler/resampler.h")
-    message(FATAL_ERROR
-        "zita-resampler headers not found in: ${ZITA_RESAMPLER_INCLUDE_DIR}")
-endif()
-
-message(STATUS "zita-resampler library: ${ZITA_RESAMPLER_LIB}")
-message(STATUS "zita-resampler headers: ${ZITA_RESAMPLER_INCLUDE_DIR}")
+# Bundle the upstream BSD notice with every distributable LV2 plugin.
+install(FILES "${guitarmidi_speexdsp_SOURCE_DIR}/COPYING"
+    DESTINATION guitarmidi-pistomp.lv2
+    RENAME SPEEXDSP-LICENSE.txt)
 
 #find_package(OpenMP REQUIRED)
 # pkg_check_modules(Pango REQUIRED pango)
@@ -135,12 +130,8 @@ set_target_properties(guitarmidi_core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 
 
-target_include_directories(guitarmidi_core PUBLIC
-    "${ZITA_RESAMPLER_INCLUDE_DIR}"
-)
-
 target_link_libraries(guitarmidi_core PUBLIC
     tensorflow-lite
-    "${ZITA_RESAMPLER_LIB}"
+    guitarmidi_speex_resampler
 )
 
