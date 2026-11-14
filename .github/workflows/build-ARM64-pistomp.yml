@@ -50,49 +50,6 @@ jobs:
       run: |
         ccache --zero-stats
 
-    - name: Fetch and Cross-Compile Upstream Zita-Resampler
-      run: |
-        # Download verified upstream archive
-        curl -L "https://kokkinizita.linuxaudio.org/linuxaudio/downloads/zita-resampler-1.11.2.tar.xz" -o zita.tar.xz
-        tar -xJf zita.tar.xz
-        cd zita-resampler-1.11.2/source
-        
-        # Cross-compile target configurations for static linking layout
-        export CXX=aarch64-linux-gnu-g++
-        
-        # Compile source objects using the parent directory path as an include flag
-        for src in resampler.cc resampler-table.cc cresampler.cc vresampler.cc; do
-            ccache "$CXX" -O2 -Wall -fPIC -I. -I.. -c "$src"
-        done
-        aarch64-linux-gnu-ar rcs libzita-resampler.a resampler.o resampler-table.o cresampler.o vresampler.o
-
-        echo "Checking for Resampler_table::destroy in the archive..."
-        nm -C --defined-only libzita-resampler.a | grep -F 'Resampler_table::destroy' || {
-            echo "ERROR: Resampler_table::destroy is not defined in the static archive"
-            exit 1
-        }
-        
-        # Populate the target configuration folders that the primary CMake tool expects
-        mkdir -p ../../deps/lib ../../deps/include/zita-resampler
-        cp libzita-resampler.a ../../deps/lib/
-        
-        # FIX: The *.h header files are located in the parent directory (..), not inside source/
-        
-        for header in cresampler.h resampler-table.h resampler.h vresampler.h; do
-            header_path=$(find .. -type f -name "$header" -print -quit)
-
-            if [ -z "$header_path" ]; then
-                echo "ERROR: Could not find $header"
-                find .. -maxdepth 3 -type f -name '*.h' -print
-                exit 1
-            fi
-
-            cp "$header_path" "$GITHUB_WORKSPACE/deps/include/zita-resampler/"
-        done
-        
-        cd ../..
-
-
     - name: Build host-native flatc
       shell: bash
       run: |
@@ -148,8 +105,6 @@ jobs:
           -DBUILD_DEB=OFF \
           -DGUITARMIDI_SYSEX_DIAGNOSTICS=OFF \
           -DGUITARMIDI_INFERENCE_DIAGNOSTICS=OFF \
-          -DZITA_RESAMPLER_INCLUDE_DIR="${GITHUB_WORKSPACE}/deps/include" \
-          -DZITA_RESAMPLER_LIB="${GITHUB_WORKSPACE}/deps/lib/libzita-resampler.a" \
           -DTFLITE_HOST_TOOLS_DIR="${TFLITE_HOST_TOOLS_DIR}" \
           ..
 
@@ -185,6 +140,10 @@ jobs:
         test -d "$BUNDLE"
         test -f "$BUNDLE/guitarmidi.so"
         test -f "$BUNDLE/guitarmidi.tflite"
+        test -f "$BUNDLE/SPEEXDSP-LICENSE.txt"
+        if aarch64-linux-gnu-readelf -d "$BUNDLE/guitarmidi.so" | grep -iq 'zita'; then
+          echo "ERROR: zita dynamic dependency remains"; exit 1
+        fi
         test -f "$BUNDLE/manifest.ttl"
         test -f "$BUNDLE/guitarmidi.ttl"
 
