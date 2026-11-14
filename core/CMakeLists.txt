@@ -39,6 +39,7 @@ set_target_properties(guitarmidi_speex_resampler PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
 target_include_directories(guitarmidi_speex_resampler PUBLIC
     "${guitarmidi_speexdsp_SOURCE_DIR}/include"
+    "${guitarmidi_speexdsp_SOURCE_DIR}/include/speex"
     "${guitarmidi_speexdsp_SOURCE_DIR}/libspeexdsp")
 target_compile_definitions(guitarmidi_speex_resampler PUBLIC
     OUTSIDE_SPEEX RANDOM_PREFIX=guitarmidi FLOATING_POINT)
