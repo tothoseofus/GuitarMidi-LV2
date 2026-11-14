@@ -30,7 +30,7 @@ message(STATUS "GuitarMidi version: ${PROJECT_VERSION}")
 # MOD web GUI metadata is shared across builds.
 
 set(GUITARMIDI_PLUGIN_URI
-    "http://github.com/geraldmwangi/GuitarMidi-LV2"
+    "https://github.com/tothoseofus/GuitarMidi-LV2"
 )
 
 set(GUITARMIDI_UI_URI
