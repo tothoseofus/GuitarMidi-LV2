@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential ccache pkg-config lv2-dev libzita-resampler-dev fakeroot dpkg-dev debhelper libx11-dev libcairo2-dev
+          sudo apt-get install -y cmake build-essential ccache pkg-config lv2-dev fakeroot dpkg-dev debhelper libx11-dev libcairo2-dev
 
       - name: Configure Linux Compilation Cache
         shell: bash
@@ -59,22 +59,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZITA_LIB=$(dpkg -L libzita-resampler-dev | grep -E '/libzita-resampler\.so$' | head -n 1)
-
-          if [[ -z "$ZITA_LIB" || ! -e "$ZITA_LIB" ]]; then
-            echo "ERROR: zita-resampler library not found"
-            exit 1
-          fi
-
-          echo "Using zita-resampler: $ZITA_LIB"
-
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_DEB=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DZITA_RESAMPLER_INCLUDE_DIR=/usr/include \
-            -DZITA_RESAMPLER_LIB="$ZITA_LIB"
 
       - name: Build
         run: cmake --build build -- -j$(nproc)
@@ -166,6 +155,10 @@ jobs:
             test -f "$BUNDLE/guitarmidi.so"
             test -f "$BUNDLE/guitarmidi_ui.so"
             test -f "$BUNDLE/guitarmidi.tflite"
+            test -f "$BUNDLE/SPEEXDSP-LICENSE.txt"
+            if readelf -d "$BUNDLE/guitarmidi.so" | grep -iq 'zita'; then
+              echo "ERROR: zita dynamic dependency remains"; exit 1
+            fi
             test -f "$BUNDLE/manifest.ttl"
             test -f "$BUNDLE/guitarmidi.ttl"
 
