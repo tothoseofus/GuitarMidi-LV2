@@ -277,6 +277,10 @@ run(LV2_Handle instance, uint32_t n_samples)
     auto *midi = static_cast<GuitarMidi::MidiOutputLV2 *>(
         plugin->fretboard->getMidiOutput());
 
+    // Reset timestamp bounds for every host callback, including bypass.
+    if (midi)
+        midi->beginAudioBlock(n_samples);
+
     if (!enabled)
     {
         // Initialise a valid MIDI output sequence for every bypassed block.
