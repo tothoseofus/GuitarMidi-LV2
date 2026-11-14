@@ -71,6 +71,9 @@ jobs:
       - name: Test SpeexDSP resampling regression
         run: ctest --test-dir build --output-on-failure -R resampling_regression
 
+      - name: Test LV2 MIDI timestamp bounds
+        run: ctest --test-dir build --output-on-failure -R midi_timestamp_regression
+
       - name: Show Linux Compilation Cache Statistics
         shell: bash
         run: |
