@@ -36,7 +36,8 @@ bool MidiOutputLV2::forge_midimessage(const uint8_t *const buffer,
     midiatom.type = m_midiEvent;
     midiatom.size = size;
 
-    if (0 == lv2_atom_forge_frame_time(&m_forge, frames))
+    // All MIDI and SysEx events share the same bounded, monotonic host time.
+    if (0 == lv2_atom_forge_frame_time(&m_forge, m_frame_time.limit(frames)))
     {
         printf("0 == lv2_atom_forge_frame_time\n");
         return false;
