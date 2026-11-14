@@ -25,7 +25,7 @@
 #include <map>
 #include <guitarmidi/noteinferencer.hpp>
 #include <guitarmidi/config.hpp>
-#include <zita-resampler/resampler.h>
+#include <speex/speex_resampler.h>
 #include <guitarmidi/fretboard_api.hpp>
 
 using namespace std;
@@ -51,10 +51,12 @@ private:
     FilterBank m_filterbank;
     NoteInferencer m_noteinferencer;
     int m_samplerate=48000;
-    Resampler m_resampler;
-    float* m_input_buffer=nullptr;
-    int m_resample_buffer_size=0;
-    float* m_resampled_buffer=nullptr;
+    SpeexResamplerState* m_resampler = nullptr;
+    const float* m_input_buffer = nullptr;
+    float* m_resampled_buffer = nullptr;  // Fixed-size output scratch, allocated at initialise.
+
+    /** Common 48 kHz processing stage for native and resampled audio. */
+    void process_48k(int nsamples, int host_pos);
 
     /** Processes an audio block after sample-rate conversion. */
     void process_resampled(int nsamples,int pos=0);
@@ -70,9 +72,9 @@ public:
     /** Releases resampling buffers and fretboard resources. */
     virtual ~FretBoard(){
 
-        if(m_resampled_buffer){
-            delete[] m_resampled_buffer;
-        }
+        if (m_resampler)
+            speex_resampler_destroy(m_resampler);
+        delete[] m_resampled_buffer;
     };
 
 
