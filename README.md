@@ -18,14 +18,14 @@ If you find GuitarMidi-LV2 useful and would like to help sustain the original re
 
 This fork is an independent community development effort and is not affiliated with or officially endorsed by Lodi Audio. All original copyright notices and applicable licence terms are retained.
 
-## Demo and news
-Check out the demo at https://www.lodi-audio.com/plugins/guitarmidi. For general news on my work see https://www.lodi-audio.com
+## Demonstrations and support
 
-## Support and Feedback
-Head to the [forum on my site](https://lodi-audio.com/forum) for support and feedback
+For information about the original GuitarMidi-LV2 project and Lodi Audio's commercial products, visit [Lodi Audio](https://www.lodi-audio.com/).
 
-# Installation
-Packages for Debian/Ubuntu are available at https://github.com/geraldmwangi/GuitarMidi-LV2/releases
+For issues, feature requests or questions relating specifically to this fork, please use the [GitHub Issues page](https://github.com/tothoseofus/GuitarMidi-LV2/issues).
+
+This fork is developed and maintained independently of the original project.
+
 
 # Usage
 
