@@ -125,32 +125,61 @@ namespace GuitarMidi
                 note_on[i] = m_note_on[i].load(std::memory_order_relaxed);
         }
     }
-    void NoteInferencer::process(int nsamples,int pos)
+
+    void NoteInferencer::process(int nsamples, int pos)
     {
-        if (m_frames < BUFFER_SIZE)
+        // Keep the existing inference input submission rate.
+        // With 256-sample blocks, this submits approximately
+        // once every 512 samples, as before.
+        if (m_frames >= BUFFER_SIZE)
+        {
+            m_frames = 0;
+
+            m_model.add_audio_input(
+                m_audiobuffer.audio_buffer_2D, 1);
+        }
+        else
         {
             m_frames += nsamples;
-            return; // only process when we have a full buffer of audio samples
         }
+
+        // Check for completed inference results on EVERY
+        // processing call, independently of input submission.
+        float output_data[NUM_NOTES];
+
+        const bool has_model_output =
+            m_model.get_model_output(output_data, 1);
+
+        // Do not update smoothing or MIDI note states
+        // using old model data.
+        if (!has_model_output)
+        {
+            return;
+        }
+
         int num_active_notes = 0;
-        for (int h = 0; h < NUM_NOTES; h++)
+
+        for (int h = 0; h < NUM_NOTES; ++h)
         {
             num_active_notes += m_note_on[h];
         }
-        //num_active_notes=1;
-        m_frames = 0;
+
         stringstream msg;
-        float gain = powf(10.0f, *m_gain_db * 0.05f);
-        float expressivity = powf(10.0f, *m_expressivity_db * 0.05f);
-        float en_threshold = pow(10, *m_onset_energy_threshold / 20) * gain;
-        float en_threshold_offset = pow(10, *m_offset_energy_threshold / 20) * gain;
-        m_model.add_audio_input(m_audiobuffer.audio_buffer_2D, 1);
-        float output_data[NUM_NOTES];
+
+        float gain =
+            powf(10.0f, *m_gain_db * 0.05f);
+
+        float expressivity =
+            powf(10.0f, *m_expressivity_db * 0.05f);
+
+        float en_threshold =
+            pow(10, *m_onset_energy_threshold / 20) * gain;
+
+        float en_threshold_offset =
+            pow(10, *m_offset_energy_threshold / 20) * gain;
 
         bool triggeron[NUM_NOTES] = {false};
         bool triggeroff[NUM_NOTES] = {false};
-
-        const bool has_model_output = m_model.get_model_output(output_data, 1);
 
         if (has_model_output)
         {
