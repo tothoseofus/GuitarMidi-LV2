@@ -2,9 +2,8 @@
 name: build-windows-x64
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches: [ "master", "main" ]
 jobs:
   build-windows-x64:
     runs-on: windows-2022
@@ -348,7 +347,7 @@ jobs:
             throw "Windows LV2 installation failed"
           }
 
-          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi.lv2"
+          $bundle = "$env:GITHUB_WORKSPACE/stage/guitarmidi-pistomp.lv2"
 
           Write-Host "Verifying Windows LV2 bundle..."
 

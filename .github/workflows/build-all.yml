@@ -1,0 +1,23 @@
+name: Build All Platforms
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  pistomp-arm64:
+    name: piStomp ARM64
+    uses: ./.github/workflows/build-ARM64-pistomp.yml
+
+  windows-x64:
+    name: Windows x64
+    uses: ./.github/workflows/build-windows-x64.yml
+
+  ubuntu-debs:
+    name: Ubuntu 24.04 and 26.04 Debian packages
+    uses: ./.github/workflows/cmake-single-platform.yml
