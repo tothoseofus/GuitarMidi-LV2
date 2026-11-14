@@ -18,6 +18,7 @@
  */
 #include <guitarmidi/fretboard.hpp>
 #include <omp.h>
+#include <algorithm>
 
 using namespace GuitarMidi;
 
@@ -172,8 +173,21 @@ void FretBoard::process_resampled(int nsamples, int pos)
 
 void FretBoard::process_48k(int nsamples, int host_pos)
 {
-    m_filterbank.process(nsamples, 0);
-    m_noteinferencer.process(nsamples, host_pos);
+    // Resampled output chunks need not coincide with the filterbank's
+    // BUFFER_SIZE window boundaries. Never write across one boundary.
+    int offset = 0;
+    while (offset < nsamples)
+    {
+        const int remaining_in_window =
+            BUFFER_SIZE - m_resampled_window_progress;
+        const int count = std::min(nsamples - offset, remaining_in_window);
+        m_filterbank.setInput(m_resampled_buffer + offset);
+        m_filterbank.process(count, 0);
+        m_noteinferencer.process(count, host_pos);
+        offset += count;
+        m_resampled_window_progress =
+            (m_resampled_window_progress + count) % BUFFER_SIZE;
+    }
 }
 
 void FretBoard::process_direct(int nsamples, int pos)
