@@ -49,6 +49,13 @@ install(FILES "${guitarmidi_speexdsp_SOURCE_DIR}/COPYING"
     DESTINATION guitarmidi-pistomp.lv2
     RENAME SPEEXDSP-LICENSE.txt)
 
+if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
+    add_executable(resampling_regression tests/resampling_regression.cpp)
+    target_include_directories(resampling_regression PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    target_link_libraries(resampling_regression PRIVATE guitarmidi_speex_resampler)
+    add_test(NAME resampling_regression COMMAND resampling_regression)
+endif()
+
 #find_package(OpenMP REQUIRED)
 # pkg_check_modules(Pango REQUIRED pango)
 
