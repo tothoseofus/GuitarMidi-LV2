@@ -162,6 +162,14 @@ jobs:
 
           Write-Host "Windows GuitarMidi build completed."
 
+      - name: Test SpeexDSP resampling regression
+        shell: pwsh
+        run: |
+          ctest --test-dir build-windows --output-on-failure -R resampling_regression
+          if ($LASTEXITCODE -ne 0) {
+            throw "SpeexDSP resampling regression failed"
+          }
+
       - name: Show Windows Compilation Cache Statistics
         if: always()
         shell: pwsh
