@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#define GUITARMIDI_URI "http://github.com/geraldmwangi/GuitarMidi-LV2"
+#define GUITARMIDI_URI "https://github.com/tothoseofus/GuitarMidi-LV2"
 #define GUITARMIDI_UI_URI GUITARMIDI_URI "#ui"
 
 // ---------------------------------------------------------------------------
