@@ -26,6 +26,19 @@
 		lv2:AmplifierPlugin ;
 	lv2:project <http://lv2plug.in/ns/lv2> ;
 	doap:name "Guitar Midi";
+    doap:description """
+        An independently maintained fork of GuitarMidi-LV2,
+        originally developed by Gerald Mwangi of Lodi Audio.
+
+        This plugin builds upon the original guitar-to-MIDI
+        detection technology, including its neural network model.
+
+        To support the continued development of the original
+        technology, please consider ArtiString, the commercial
+        guitar-to-MIDI plugin from Lodi Audio:
+
+        https://www.lodi-audio.com/plugins/artistring
+    """ ;
 	doap:license <http://opensource.org/licenses/isc> ;
     lv2:optionalFeature lv2:hardRTCapable ;
     lv2:requiredFeature urid:map ;
