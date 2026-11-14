@@ -54,6 +54,7 @@ private:
     SpeexResamplerState* m_resampler = nullptr;
     const float* m_input_buffer = nullptr;
     float* m_resampled_buffer = nullptr;  // Fixed-size output scratch, allocated at initialise.
+    int m_resampled_window_progress = 0; // Tracks native-rate filterbank window boundaries.
 
     /** Common 48 kHz processing stage for native and resampled audio. */
     void process_48k(int nsamples, int host_pos);
