@@ -4,6 +4,20 @@
 A concept for guitar to midi as an lv2 plugin. GuitarMidi-LV2 analyses the signal of a guitar in standard tuning E A D g b e extracts the notes played.
 It deploys a bank of butterworth bandpass filters to separate the polyphonic audio into monophonic frequency segments, which are then analysed for multiple fundamental frequencies by a custom neural net.
 
+## Project origin and supporting the original developer
+
+This repository is an independently maintained fork of [GuitarMidi-LV2](https://github.com/geraldmwangi/GuitarMidi-LV2), originally developed by **Gerald Mwangi of Lodi Audio**.
+
+The original project provides the foundation for the guitar-to-MIDI detection technology used here, including its neural network model. This fork builds upon that work with additional development, performance improvements, platform compatibility and functionality.
+
+Developing and training neural network models requires considerable time, expertise and resources. We would like to acknowledge Gerald's work and encourage users who find this technology valuable to support its continued development.
+
+**Lodi Audio offers [ArtiString](https://www.lodi-audio.com/plugins/artistring), a commercial guitar-to-MIDI VST3 plugin for Windows and Linux**, based on the GuitarMidi technology. ArtiString provides an enhanced user interface, guitar-specific presets and additional features for musicians seeking a polished, supported solution.
+
+If you find GuitarMidi-LV2 useful and would like to help sustain the original research and development behind it, please consider purchasing ArtiString.
+
+This fork is an independent community development effort and is not affiliated with or officially endorsed by Lodi Audio. All original copyright notices and applicable licence terms are retained.
+
 ## Demo and news
 Check out the demo at https://www.lodi-audio.com/plugins/guitarmidi. For general news on my work see https://www.lodi-audio.com
 
