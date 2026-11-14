@@ -32,6 +32,7 @@
 #include <lv2/atom/forge.h>
 #include <guitarmidi/logging.hpp>
 #include <guitarmidi/fretboard_api.hpp>
+#include <guitarmidi/midi_frame_time.hpp>
 /**
  * @brief MidiOutput abstracts lv2's midi messaging. It needs some debugging
  * 
@@ -45,6 +46,7 @@ namespace GuitarMidi {
         LV2_Atom_Forge_Frame m_frame;
         LV2_URID m_midiEvent;
         LV2_Atom_Sequence *m_midioutput;
+        MidiFrameTime m_frame_time;
       
 
         bool forge_midimessage(
@@ -53,6 +55,10 @@ namespace GuitarMidi {
 
     public:
         MidiOutputLV2(LV2_URID_Map *map);
+        /** Set the current LV2 run block length before writing MIDI events. */
+        void beginAudioBlock(uint32_t frames) noexcept {
+            m_frame_time.beginBlock(frames);
+        }
         void setMidiOutput(LV2_Atom_Sequence *output);
         virtual void initializeSequence();
         virtual void finalizeSequence();
