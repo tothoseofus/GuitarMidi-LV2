@@ -11,6 +11,7 @@ set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # specify the C++ standard
 
+include(CTest)
 option(BUILD_ANALYSIS_APP "Build analysis app, useful for development" OFF)
 
 option(GUITARMIDI_SYSEX_DIAGNOSTICS "Enable MIDI SysEx confidence diagnostics" OFF)
