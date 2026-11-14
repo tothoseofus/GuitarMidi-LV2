@@ -68,6 +68,9 @@ jobs:
       - name: Build
         run: cmake --build build -- -j$(nproc)
       
+      - name: Test SpeexDSP resampling regression
+        run: ctest --test-dir build --output-on-failure -R resampling_regression
+
       - name: Show Linux Compilation Cache Statistics
         shell: bash
         run: |
