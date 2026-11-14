@@ -31,6 +31,15 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(TENSORFLOW_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/tensorflow")
 message("Tensorflow found at ${TENSORFLOW_SOURCE_DIR}")
 add_subdirectory(core)
+
+if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
+    add_executable(midi_timestamp_regression
+        core/tests/midi_timestamp_regression.cpp)
+    target_include_directories(midi_timestamp_regression PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/core/include")
+    add_test(NAME midi_timestamp_regression COMMAND midi_timestamp_regression)
+endif()
+
 add_subdirectory(src)
 
 if(BUILD_UI)
