@@ -59,6 +59,9 @@ jobs:
     needs: [validate, build]
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v6
+
       - name: Download piStomp ARM64 bundle
         uses: actions/download-artifact@v6
         with:
@@ -100,6 +103,37 @@ jobs:
           echo "Release assets:"
           ls -lh release-assets/
 
+      - name: Prepare release notes (curated notes above generated changelog)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+        run: |
+          set -euo pipefail
+          NOTES_FILE="release-notes/${RELEASE_TAG}.md"
+          BODY_FILE="release-body.md"
+
+          # Generate the standard GitHub release notes before creating the tag.
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f "tag_name=${RELEASE_TAG}" \
+            -f "target_commitish=${GITHUB_SHA}" \
+            --jq '.body' > generated-notes.md
+
+          # A version-specific Markdown file, when present, goes above the
+          # automatically generated notes. Other versions still work without
+          # a curated file.
+          if [[ -f "$NOTES_FILE" ]]; then
+            echo "Prepending curated release notes: $NOTES_FILE"
+            cat "$NOTES_FILE" > "$BODY_FILE"
+            printf '\n\n' >> "$BODY_FILE"
+          else
+            echo "No curated notes at $NOTES_FILE; using generated notes only."
+            : > "$BODY_FILE"
+          fi
+          cat generated-notes.md >> "$BODY_FILE"
+          test -s "$BODY_FILE"
+
       - name: Create version tag and publish GitHub release
         shell: bash
         env:
@@ -111,4 +145,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "GuitarMidi-LV2 $RELEASE_TAG" \
-            --generate-notes
+            --notes-file release-body.md
