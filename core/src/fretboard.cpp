@@ -17,7 +17,9 @@
  * Boston, MA  02110-1301  USA
  */
 #include <guitarmidi/fretboard.hpp>
+#include <guitarmidi/resample_stream.hpp>
 #include <omp.h>
+#include <algorithm>
 
 using namespace GuitarMidi;
 
@@ -34,7 +36,7 @@ void FretBoard::setAudioInput(const float *input)
 {
     if (m_samplerate != NATIVE_SAMPLERATE)
     {
-        m_input_buffer = const_cast<float *>(input);
+        m_input_buffer = input;
         m_filterbank.setInput(m_resampled_buffer);
     }
     else
@@ -43,37 +45,31 @@ void FretBoard::setAudioInput(const float *input)
     }
 }
 
-
 bool FretBoard::initialize(const std::string &bundle_path, int samplerate, int buffer_size)
 {
-    //lv2_log_note(&g_logger, "Initializing FretBoard with samplerate %d and buffer size %d ", samplerate, buffer_size);
-    g_logger.info("Initializing FretBoard with samplerate %d and buffer size %d ", samplerate, buffer_size);
-    // check if the samplerate of the host is different from the native samplerate of the plugin, if so, setup the resampler
+    g_logger.info("Initializing FretBoard with samplerate %d and buffer size %d ",
+                  samplerate, buffer_size);
+    if (samplerate <= 0 || buffer_size <= 0)
+        return false;
+
     if (samplerate != NATIVE_SAMPLERATE)
     {
-        //lv2_log_note(&g_logger, "Host samplerate %d is different from plugin samplerate %d, resampling will be performed", samplerate, NATIVE_SAMPLERATE);
-        g_logger.info("Host samplerate  %d is different from plugin samplerate %d, resampling will be performed", samplerate, NATIVE_SAMPLERATE);
-        m_resample_buffer_size = buffer_size;
-        m_resampled_buffer = new float[m_resample_buffer_size];
-        if (m_resampler.setup(samplerate, NATIVE_SAMPLERATE, 1, 16))
+        g_logger.info("Host samplerate %d differs from native %d; enabling SpeexDSP",
+                      samplerate, NATIVE_SAMPLERATE);
+        int error = RESAMPLER_ERR_SUCCESS;
+        m_resampler = speex_resampler_init(
+            1, static_cast<spx_uint32_t>(samplerate),
+            NATIVE_SAMPLERATE, SPEEX_RESAMPLER_QUALITY_DESKTOP, &error);
+        if (!m_resampler || error != RESAMPLER_ERR_SUCCESS)
         {
-            //lv2_log_error(&g_logger, "Failed to setup resampler");
-            g_logger.error("Failed to setup resampler");
+            g_logger.error("Failed to initialise SpeexDSP resampler");
             return false;
         }
-        // Initialise the resamplers for zero delay.
-        m_resampler.inp_count = m_resampler.inpsize() - 1;
-        m_resampler.inp_data = 0;
-        m_resampler.out_count = 999999;
-        m_resampler.out_data = 0;
-        m_resampler.process();
-
-        // Set the initial conditions, input buffer empty.
-        m_resampler.out_data = m_resampled_buffer;
-        m_resampler.out_count = buffer_size;
+        // SpeexDSP maintains fractional phase and filter history internally.
+        // A fixed scratch buffer avoids allocations in the LV2 audio callback.
+        m_resampled_buffer = new float[BUFFER_SIZE];
     }
 
-    // setup the filterbank with the filter representations from the fretboard representation
     m_samplerate = samplerate;
     m_fretboard_rep = FretBoardRepresentation();
     m_filterbank.setup(m_fretboard_rep.get_filterrepresentations(), NATIVE_SAMPLERATE, buffer_size);
@@ -141,30 +137,48 @@ void FretBoard::process(int nsamples)
 
 
 
-void FretBoard::process_resampled(int nsamples,int pos)
+void FretBoard::process_resampled(int nsamples, int pos)
 {
- 
-    m_resampler.inp_data=m_input_buffer+pos;// push the pointer forward when the sound servers buffersize is larger than BUFFER_SIZE
-    m_resampler.inp_count=nsamples;
-    while(m_resampler.inp_count){
-        m_resampler.process();
-        if(m_resampler.out_count==0){
-            m_filterbank.process(m_resample_buffer_size);
-            m_noteinferencer.process(nsamples,pos);
-            m_resampler.out_data=m_resampled_buffer;
-            m_resampler.out_count=m_resample_buffer_size;
-        }
-    }
-
-
+    // Exercise the same streaming driver verified by resampling_regression.
+    const bool ok = resampleStreamingBlock(
+        m_resampler, m_input_buffer + pos, static_cast<std::uint32_t>(nsamples),
+        m_resampled_buffer, BUFFER_SIZE,
+        [this, pos](const float*, std::uint32_t produced, std::uint32_t consumed)
+        {
+            // Converted output is already in the preallocated member buffer.
+            // MIDI offsets in the resampled path still require runtime validation.
+            const int host_pos = pos + (consumed ? static_cast<int>(consumed) - 1 : 0);
+            process_48k(static_cast<int>(produced), host_pos);
+            return true;
+        });
+    if (!ok)
+        g_logger.error("SpeexDSP streaming conversion failed");
 }
-void FretBoard::process_direct(int nsamples,int pos)
-{
-    m_filterbank.process(nsamples,pos);
 
-    
-    m_noteinferencer.process(nsamples,pos);
-    
+void FretBoard::process_48k(int nsamples, int host_pos)
+{
+    // Resampled output chunks need not coincide with the filterbank's
+    // BUFFER_SIZE window boundaries. Never write across one boundary.
+    int offset = 0;
+    while (offset < nsamples)
+    {
+        const int remaining_in_window =
+            BUFFER_SIZE - m_resampled_window_progress;
+        const int count = std::min(nsamples - offset, remaining_in_window);
+        m_filterbank.setInput(m_resampled_buffer + offset);
+        m_filterbank.process(count, 0);
+        m_noteinferencer.process(count, host_pos);
+        offset += count;
+        m_resampled_window_progress =
+            (m_resampled_window_progress + count) % BUFFER_SIZE;
+    }
+}
+
+void FretBoard::process_direct(int nsamples, int pos)
+{
+    // Preserve existing 48 kHz processing behaviour exactly.
+    m_filterbank.process(nsamples, pos);
+    m_noteinferencer.process(nsamples, pos);
 }
 
 void FretBoard::getFilterWaveforms(float *waveforms, uint32_t samples_per_filter) const
