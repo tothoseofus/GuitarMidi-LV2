@@ -25,6 +25,8 @@
 class LoggingAPI
 {
 public:
+    virtual ~LoggingAPI() = default;
+
     virtual void info(std::string info_message, va_list args) = 0;
     virtual void error(std::string error_message, va_list args) = 0;
     virtual void warn(std::string warn_message, va_list args) = 0;
