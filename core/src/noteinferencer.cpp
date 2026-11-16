@@ -59,8 +59,8 @@ namespace GuitarMidi
     }
     void NoteInferencer::finalize()
     {
-        if (m_midioutput)
-            m_midioutput->finalizeSequence();
+//        if (m_midioutput)
+//            m_midioutput->finalizeSequence();
     }
 
     void NoteInferencer::discardPendingModelOutput()
