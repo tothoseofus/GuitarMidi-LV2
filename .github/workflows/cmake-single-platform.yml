@@ -74,6 +74,9 @@ jobs:
       - name: Test LV2 MIDI timestamp bounds
         run: ctest --test-dir build --output-on-failure -R midi_timestamp_regression
 
+      - name: Test inference notification regression
+        run: ctest --test-dir build --output-on-failure -R inference_notification_regression
+
       - name: Show Linux Compilation Cache Statistics
         shell: bash
         run: |

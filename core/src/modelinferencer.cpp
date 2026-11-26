@@ -19,14 +19,9 @@
         while (!stop_thread.load(std::memory_order_acquire)) {
 
             // Wait until an input frame is available.
-            const bool notified = input_ready.wait();
+            audio_input_buffer.wait_for_new_data(stop_thread);
 
             if (stop_thread.load(std::memory_order_acquire)) {
-                break;
-            }
-
-            if (!notified) {
-                g_logger.error("Inference notification wait failed.\n");
                 break;
             }
 
@@ -37,14 +32,9 @@
             float* input_buffer =
                 m_interpreter->typed_input_tensor<float>(0);
 
-            // Consume exactly one frame for this notification.
+            // Consume one queued frame; waiting returns immediately if more are ready.
             if (!audio_input_buffer.get_latest_data(input_buffer))
             {
-            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
-                empty_wakeups.fetch_add(
-                    1, std::memory_order_relaxed);
-            #endif
-
                 continue;
             }
 
@@ -178,10 +168,6 @@
         bool GuitarMidi::ModelInferencer::initialize(
             const std::string& bundle_path)
     {
-        if (!input_ready.valid()) {
-            return false;
-        }
-
         auto init_future = m_initialization_promise.get_future();
 
         inferencing_thread = std::thread(
@@ -202,12 +188,6 @@
 
     GuitarMidi::ModelInferencer::ModelInferencer()
     {
-        if (!input_ready.valid()) {
-            g_logger.error(
-                "Failed to initialise inference notification.\n"
-            );
-        }
-
         g_logger.info(
             "Audio input ring buffer size: %d frames\n",
             RING_BUFFER_SIZE
@@ -223,7 +203,7 @@
         );
 
         // Wake the thread if it is waiting for input.
-        input_ready.notify();
+        audio_input_buffer.wake_waiters();
 
         // Wait for inference and its use of XNNPACK to finish.
         if (inferencing_thread.joinable()) {
@@ -272,18 +252,6 @@
         );
 
         g_logger.info(
-            "Notification failures: %llu\n",
-            static_cast<unsigned long long>(
-                notification_failures.load(std::memory_order_relaxed))
-        );
-
-        g_logger.info(
-            "Empty wake-ups: %llu\n",
-            static_cast<unsigned long long>(
-                empty_wakeups.load(std::memory_order_relaxed))
-        );
-
-        g_logger.info(
             "Inference errors: %llu\n",
             static_cast<unsigned long long>(
                 inference_errors.load(std::memory_order_relaxed))
@@ -303,8 +271,6 @@
 
         m_model.reset();
 
-        // The notification is destroyed automatically
-        // after this destructor finishes.
     }
 
     void GuitarMidi::ModelInferencer::add_audio_input(
@@ -314,8 +280,7 @@
         if (!m_processing_enabled.load(std::memory_order_acquire))
             return;
 
-        if (!input_ready.valid() ||
-            stop_thread.load(std::memory_order_relaxed)) {
+        if (stop_thread.load(std::memory_order_relaxed)) {
             return;
         }
 
@@ -344,12 +309,6 @@
                 // Retry only if the maximum changed.
             }
 
-            // Notify the inference thread.
-            if (!input_ready.notify())
-            {
-                notification_failures.fetch_add(
-                    1, std::memory_order_relaxed);
-            }
         }
         else
         {
@@ -359,11 +318,8 @@
 
         #else
 
-        // Normal production behaviour remains unchanged.
-        if (audio_input_buffer.add_data(input))
-        {
-            input_ready.notify();
-        }
+        // Successful publication notifies the worker.
+        audio_input_buffer.add_data(input);
 
         #endif
 

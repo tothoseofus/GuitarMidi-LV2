@@ -38,6 +38,15 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
     target_include_directories(midi_timestamp_regression PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/core/include")
     add_test(NAME midi_timestamp_regression COMMAND midi_timestamp_regression)
+
+    find_package(Threads REQUIRED)
+    add_executable(inference_notification_regression
+        core/tests/inference_notification_regression.cpp)
+    target_include_directories(inference_notification_regression PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/core/include")
+    target_link_libraries(inference_notification_regression PRIVATE Threads::Threads)
+    add_test(NAME inference_notification_regression COMMAND inference_notification_regression)
+    set_tests_properties(inference_notification_regression PROPERTIES TIMEOUT 30)
 endif()
 
 add_subdirectory(src)

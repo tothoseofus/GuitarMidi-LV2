@@ -24,7 +24,7 @@
 #include <atomic>
 #include <cstring>
 #include <cstdint>
-#include <guitarmidi/inferencenotification.hpp>
+#include <guitarmidi/spscringbuffer.hpp>
 #include <guitarmidi/common.hpp>
 #include <tensorflow/lite/version.h>
 #include "tensorflow/lite/core/interpreter_builder.h"
@@ -45,101 +45,6 @@ using namespace tflite;
 
 namespace GuitarMidi{
     //spsc ring buffer for audio input and model output with atomic read and write indices for thread safety
-    template<size_t NumSlots, size_t Stride>
-    class SpscRingBuffer {
-        static_assert(
-            NumSlots >= 2 && (NumSlots & (NumSlots - 1)) == 0,
-            "NumSlots must be a power of two"
-        );
-
-        float buffer[NumSlots][Stride];
-
-        std::atomic<size_t> write_index{0};
-        std::atomic<size_t> read_index{0};
-
-    public:
-        // Called only by the producer.
-        // Returns false if the buffer is full.
-       bool add_data(const float* data, size_t* queued_after = nullptr)
-      {
-            const size_t write =
-                write_index.load(std::memory_order_relaxed);
-
-            const size_t read =
-                read_index.load(std::memory_order_acquire);
-
-            if (write - read >= NumSlots) {
-                return false;
-            }
-
-            std::memcpy(
-                buffer[write & (NumSlots - 1)],
-                data,
-                Stride * sizeof(float)
-            );
-
-            write_index.store(
-                write + 1,
-                std::memory_order_release
-            );
-
-            #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
-                if (queued_after != nullptr)
-                {
-                    *queued_after = write + 1 - read;
-                }
-            #else
-                 (void)queued_after;
-            #endif
-
-            return true;
-        }
-
-        bool has_new_data() const {
-            return write_index.load(std::memory_order_acquire) !=
-                   read_index.load(std::memory_order_relaxed);
-        }
-
-        // Called only by the consumer.
-        // Returns false if the buffer is empty.
-        bool get_latest_data(float* output) {
-            const size_t read =
-                read_index.load(std::memory_order_relaxed);
-
-            const size_t write =
-                write_index.load(std::memory_order_acquire);
-
-            if (read == write) {
-                return false;
-            }
-
-            std::memcpy(
-                output,
-                buffer[read & (NumSlots - 1)],
-                Stride * sizeof(float)
-            );
-
-            read_index.store(
-                read + 1,
-                std::memory_order_release
-            );
-
-            return true;
-        }
-
-        #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
-         size_t queued_count() const noexcept
-         {
-             const size_t write =
-                 write_index.load(std::memory_order_acquire);
-
-             const size_t read =
-                 read_index.load(std::memory_order_acquire);
-
-             return write - read;
-         }
-        #endif
-    };
 
 
 /*
@@ -156,13 +61,12 @@ class ModelInferencer {
         // Must outlive the TensorFlow Lite interpreter.
         TfLiteDelegate* m_xnnpack_delegate = nullptr;
 
-        SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES*NUM_HARMONICS*BUFFER_SIZE> audio_input_buffer;
+        SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES*NUM_HARMONICS*BUFFER_SIZE, true> audio_input_buffer;
         SpscRingBuffer<RING_BUFFER_SIZE, NUM_NOTES> model_output_buffer;
         std::thread inferencing_thread;
 
         std::atomic<bool> stop_thread{false};
 
-        InferenceNotification input_ready;
         // Diagnostic counters. Kept in the class layout for
         // compatibility across compilation units.
         // Updates are compiled out when diagnostics are OFF.
@@ -170,8 +74,6 @@ class ModelInferencer {
         std::atomic<uint64_t> input_frames_dropped{0};
         std::atomic<uint64_t> inferences_completed{0};
         std::atomic<uint64_t> output_frames_dropped{0};
-        std::atomic<uint64_t> notification_failures{0};
-        std::atomic<uint64_t> empty_wakeups{0};
         std::atomic<uint64_t> inference_errors{0};
 
         std::atomic<size_t> max_input_queue_depth{0};
