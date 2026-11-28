@@ -89,6 +89,8 @@ void FretBoard::finalize()
 void FretBoard::setBypassed(bool bypassed)
 {
     m_noteinferencer.setBypassed(bypassed);
+    if (bypassed)
+        m_filterbank.reset();
 }
 
 void FretBoard::discardPendingModelOutput()
@@ -165,22 +167,28 @@ void FretBoard::process_48k(int nsamples, int host_pos)
     while (offset < nsamples)
     {
         const int remaining_in_window =
-            BUFFER_SIZE - m_resampled_window_progress;
+            m_filterbank.samplesUntilWindowEnd();
         const int count = std::min(nsamples - offset, remaining_in_window);
         m_filterbank.setInput(m_resampled_buffer + offset);
         m_filterbank.process(count, 0);
         m_noteinferencer.process(count, host_pos);
         offset += count;
-        m_resampled_window_progress =
-            (m_resampled_window_progress + count) % BUFFER_SIZE;
     }
 }
 
 void FretBoard::process_direct(int nsamples, int pos)
 {
-    // Preserve existing 48 kHz processing behaviour exactly.
-    m_filterbank.process(nsamples, pos);
-    m_noteinferencer.process(nsamples, pos);
+    // Host blocks need not divide the native inference window.
+    // Complete each window before overwriting any of its samples.
+    int offset = 0;
+    while (offset < nsamples)
+    {
+        const int count = std::min(nsamples - offset,
+                                   m_filterbank.samplesUntilWindowEnd());
+        m_filterbank.process(count, pos + offset);
+        m_noteinferencer.process(count, pos + offset);
+        offset += count;
+    }
 }
 
 void FretBoard::getFilterWaveforms(float *waveforms, uint32_t samples_per_filter) const

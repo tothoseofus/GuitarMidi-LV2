@@ -82,8 +82,12 @@ namespace GuitarMidi{
             /** Releases the filter-bank output buffer. */
             ~FilterBank(){
                 // Free the 2D audio buffer
+                guitarMidiTrace("before filterbank buffer delete", this, m_filterbankbuffer.audio_buffer_2D);
                 delete[] m_filterbankbuffer.audio_buffer_2D;
+                guitarMidiTrace("after filterbank buffer delete", this);
+                guitarMidiTrace("before waveform buffer delete", this, m_filterwaveformbuffer.audio_buffer_2D);
                 delete[] m_filterwaveformbuffer.audio_buffer_2D;
+                guitarMidiTrace("filterbank destructor complete", this);
             };
 
             /** Configures filter coefficients for the requested fretboard representation. */
@@ -100,6 +104,10 @@ namespace GuitarMidi{
                 //     f.second->setInput(input);
                 // }
                 
+            }
+
+            int samplesUntilWindowEnd() const noexcept {
+                return BUFFER_SIZE - m_current_buffer_offset;
             }
 
             /** Processes a block of audio through all filters. */

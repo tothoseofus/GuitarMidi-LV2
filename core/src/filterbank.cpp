@@ -127,6 +127,9 @@ void FilterBank::setup(std::map<unsigned, FilterRepresentation> filterreps,
 }
 void FilterBank::reset()
 {
+    m_current_buffer_offset = 0;
+    std::memset(m_filterbankbuffer.audio_buffer_2D, 0,
+                NUM_FILTERS * BUFFER_SIZE * sizeof(float));
     std::memset(m_s1, 0, sizeof(m_s1));
     std::memset(m_s2, 0, sizeof(m_s2));
     std::memset(m_filterwaveformbuffer.audio_buffer_2D, 0,
@@ -137,6 +140,8 @@ void FilterBank::reset()
 
 void FilterBank::process(int nsamples,int pos)
 {
+    // Defensive bound: even an unsplit caller cannot write beyond a row.
+    // Production FretBoard callers split first so completed windows are visible.
     float gain = powf(10.0f, *m_gain_db * 0.05f);
     for (int n = 0; n < nsamples; ++n)
     { 
@@ -161,7 +166,7 @@ void FilterBank::process(int nsamples,int pos)
             float s1_1 = m_s1[f][1], s2_1 = m_s2[f][1];
 
             float *__restrict out =
-                m_filterbankbuffer.audio_buffer_2D + f * m_filterbankbuffer.window_size + m_current_buffer_offset;
+                m_filterbankbuffer.audio_buffer_2D + f * m_filterbankbuffer.window_size;
             float *__restrict waveform_out =
                 m_filterwaveformbuffer.audio_buffer_2D + f * m_filterwaveformbuffer.window_size;
 
@@ -176,7 +181,7 @@ void FilterBank::process(int nsamples,int pos)
             s2_1 = b2_1 * y0 - a2_1 * y1;
 
             const float rectified_output = std::fabs(y1);
-            out[n] = rectified_output;
+            out[m_current_buffer_offset] = rectified_output;
             if (waveform_capture_column >= 0)
                 waveform_out[waveform_capture_column] = rectified_output;
             // output the audio for the selected filter and note/harmonic if audio output is enabled. if selected harmonic is 4, output the sum of all filters
@@ -213,11 +218,7 @@ void FilterBank::process(int nsamples,int pos)
             m_s1[f][1] = s1_1;
             m_s2[f][1] = s2_1;
         }
-    }
-
-    m_current_buffer_offset += nsamples;
-    if (m_current_buffer_offset >= BUFFER_SIZE)
-    {
-        m_current_buffer_offset = 0;
+        if (++m_current_buffer_offset == BUFFER_SIZE)
+            m_current_buffer_offset = 0;
     }
 }

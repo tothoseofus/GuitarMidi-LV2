@@ -53,12 +53,13 @@ namespace GuitarMidi
         if (m_midioutput)
             m_midioutput->initializeSequence();
         // #ifdef WITH_AUDIO_OUTPUT
-        m_frames = 0;
+        m_submission.reset();
         // #endif
         return m_model.initialize(bundle_path);
     }
     void NoteInferencer::finalize()
     {
+        m_submission.reset();
 //        if (m_midioutput)
 //            m_midioutput->finalizeSequence();
     }
@@ -91,7 +92,7 @@ namespace GuitarMidi
                 m_momentary_noteenergies[i] = 0.0f;
             }
 
-            m_frames = 0;
+            m_submission.reset();
 
     #ifdef GUITARMIDI_SYSEX_DIAGNOSTICS
             m_diagnostic_counter = 0;
@@ -102,7 +103,7 @@ namespace GuitarMidi
         else
         {
             discardPendingModelOutput();
-            m_frames = 0;
+            m_submission.reset();
             m_model.setProcessingEnabled(true);
         }
     }
@@ -128,20 +129,10 @@ namespace GuitarMidi
 
     void NoteInferencer::process(int nsamples, int pos)
     {
-        // Keep the existing inference input submission rate.
-        // With 256-sample blocks, this submits approximately
-        // once every 512 samples, as before.
-        if (m_frames >= BUFFER_SIZE)
-        {
-            m_frames = 0;
-
-            m_model.add_audio_input(
-                m_audiobuffer.audio_buffer_2D, 1);
-        }
-        else
-        {
-            m_frames += nsamples;
-        }
+        // Submit every second COMPLETE native window (512 samples).
+        // FretBoard splits at window boundaries, so no partial window is queued.
+        if (m_submission.advance(nsamples))
+            m_model.add_audio_input(m_audiobuffer.audio_buffer_2D, 1);
 
         // Check for completed inference results on EVERY
         // processing call, independently of input submission.

@@ -69,7 +69,7 @@ jobs:
         run: cmake --build build -- -j$(nproc)
       
       - name: Test SpeexDSP resampling regression
-        run: ctest --test-dir build --output-on-failure -R resampling_regression
+        run: ctest --test-dir build --output-on-failure -R 'resampling_regression|filterbank_window_regression'
 
       - name: Test LV2 MIDI timestamp bounds
         run: ctest --test-dir build --output-on-failure -R midi_timestamp_regression

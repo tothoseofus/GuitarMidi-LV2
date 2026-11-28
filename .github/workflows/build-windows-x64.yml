@@ -183,7 +183,7 @@ jobs:
       - name: Test SpeexDSP resampling regression
         shell: pwsh
         run: |
-          ctest --test-dir build-windows --output-on-failure -R resampling_regression
+          ctest --test-dir build-windows --output-on-failure -R 'resampling_regression|filterbank_window_regression'
           if ($LASTEXITCODE -ne 0) {
             throw "SpeexDSP resampling regression failed"
           }

@@ -35,6 +35,7 @@
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include <guitarmidi/modelinferencer.hpp>
 #include <guitarmidi/lifecycle_trace.hpp>
+#include <guitarmidi/inference_window.hpp>
 using namespace std;
 using namespace tflite;
 namespace GuitarMidi{
@@ -62,7 +63,7 @@ namespace GuitarMidi{
         float m_momentary_noteenergies[NUM_NOTES]={0};
         // std::unique_ptr<tflite::FlatBufferModel> model;
         //#ifdef WITH_AUDIO_OUTPUT
-        int64_t m_frames=0;
+        InferenceWindow<BUFFER_SIZE> m_submission;
         //#endif
         std::atomic<bool> m_note_on[NUM_NOTES];
 
