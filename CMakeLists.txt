@@ -13,6 +13,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(CTest)
 option(GUITARMIDI_LIFECYCLE_DIAGNOSTICS "Trace plugin lifecycle to stderr" ON)
+option(GUITARMIDI_DIAGNOSTIC_STDERR_LOGGER "Use one fixed host-independent logger for crash diagnosis" OFF)
+if(GUITARMIDI_DIAGNOSTIC_STDERR_LOGGER)
+    add_definitions(-DGUITARMIDI_DIAGNOSTIC_STDERR_LOGGER)
+endif()
 if(GUITARMIDI_LIFECYCLE_DIAGNOSTICS)
     execute_process(COMMAND git rev-parse --short HEAD
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -4,6 +4,11 @@ name: build-windows-x64
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      diagnostic_stderr_logger:
+        description: "Build B: fixed stderr logger instead of mutable host logger"
+        type: boolean
+        default: false
 jobs:
   build-windows-x64:
     runs-on: windows-2022
@@ -22,7 +27,8 @@ jobs:
         shell: pwsh
         run: |
           $shortSha = (git rev-parse --short=7 HEAD).Trim()
-          $buildId = "build$($env:GITHUB_RUN_NUMBER)-$shortSha"
+          $loggerMode = if ('${{ inputs.diagnostic_stderr_logger }}' -eq 'true') { '-stderr-logger' } else { '' }
+          $buildId = "build$($env:GITHUB_RUN_NUMBER)-$shortSha$loggerMode"
           "BUILD_ID=$buildId" >> $env:GITHUB_ENV
           Write-Host "Build version: $buildId"
 
@@ -125,6 +131,9 @@ jobs:
           Write-Host "Include directory: $includeDir"
 
           
+          $stderrLogger = if ('${{ inputs.diagnostic_stderr_logger }}' -eq 'true') { 'ON' } else { 'OFF' }
+          Write-Host "Diagnostic stderr logger: $stderrLogger"
+
           cmake -S . -B build-windows `
             -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
@@ -132,6 +141,7 @@ jobs:
             -DBUILD_DEB=OFF `
             -DGUITARMIDI_SYSEX_DIAGNOSTICS=OFF `
             -DGUITARMIDI_INFERENCE_DIAGNOSTICS=OFF `
+            "-DGUITARMIDI_DIAGNOSTIC_STDERR_LOGGER=$stderrLogger" `
             -DTFLITE_ENABLE_XNNPACK=ON `
             -DCMAKE_C_COMPILER_LAUNCHER=sccache `
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `

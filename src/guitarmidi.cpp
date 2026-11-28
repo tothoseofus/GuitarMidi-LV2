@@ -37,7 +37,30 @@
 #include <guitarmidi/lifecycle_trace.hpp>
 
 
+#ifdef GUITARMIDI_DIAGNOSTIC_STDERR_LOGGER
+// Diagnostic-only: one immutable logger for the lifetime of this DLL.
+// No LV2 feature pointers are retained and no instance replaces the logger.
+namespace {
+class DiagnosticStderrLogger final : public LoggingAPI {
+public:
+    void info(std::string message, va_list args) override {
+        std::vfprintf(stderr, message.c_str(), args);
+        std::fflush(stderr);
+    }
+    void error(std::string message, va_list args) override {
+        std::vfprintf(stderr, message.c_str(), args);
+        std::fflush(stderr);
+    }
+    void warn(std::string message, va_list args) override {
+        std::vfprintf(stderr, message.c_str(), args);
+        std::fflush(stderr);
+    }
+};
+}
+LoggerSingleton g_logger(new DiagnosticStderrLogger());
+#else
 LoggerSingleton g_logger;
+#endif
 typedef enum
 {
 	FRETBOARD_INPUT = 0,
@@ -127,11 +150,15 @@ instantiate(const LV2_Descriptor *descriptor,
 			options = (LV2_Options_Option *)features[i]->data;
 		}
 	}
+#ifdef GUITARMIDI_DIAGNOSTIC_STDERR_LOGGER
+	guitarMidiTrace("logger mode: fixed stderr (no host log feature retained)", descriptor);
+#else
 	//lv2_log_logger_init(&g_logger, map, log);
 	LV2Logger* lv2logger=new LV2Logger(map,log);
 	guitarMidiTrace("instantiate installing logger", lv2logger, log);
 	g_logger.setLogger(lv2logger);
 	guitarMidiTrace("instantiate logger installed", lv2logger);
+#endif
 
 	if (!map)
 	{
