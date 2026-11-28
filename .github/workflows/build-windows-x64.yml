@@ -9,6 +9,10 @@ on:
         description: "Build B: fixed stderr logger instead of mutable host logger"
         type: boolean
         default: false
+      diagnostic_cache_guard:
+        description: "Build C: check XNNPACK in-memory cache support"
+        type: boolean
+        default: false
 jobs:
   build-windows-x64:
     runs-on: windows-2022
@@ -28,7 +32,8 @@ jobs:
         run: |
           $shortSha = (git rev-parse --short=7 HEAD).Trim()
           $loggerMode = if ('${{ inputs.diagnostic_stderr_logger }}' -eq 'true') { '-stderr-logger' } else { '' }
-          $buildId = "build$($env:GITHUB_RUN_NUMBER)-$shortSha$loggerMode"
+          $cacheMode = if ('${{ inputs.diagnostic_cache_guard }}' -eq 'true') { '-cache-guard' } else { '' }
+          $buildId = "build$($env:GITHUB_RUN_NUMBER)-$shortSha$loggerMode$cacheMode"
           "BUILD_ID=$buildId" >> $env:GITHUB_ENV
           Write-Host "Build version: $buildId"
 
@@ -133,6 +138,8 @@ jobs:
           
           $stderrLogger = if ('${{ inputs.diagnostic_stderr_logger }}' -eq 'true') { 'ON' } else { 'OFF' }
           Write-Host "Diagnostic stderr logger: $stderrLogger"
+          $cacheGuard = if ('${{ inputs.diagnostic_cache_guard }}' -eq 'true') { 'ON' } else { 'OFF' }
+          Write-Host "Diagnostic XNNPACK cache guard: $cacheGuard"
 
           cmake -S . -B build-windows `
             -G Ninja `
@@ -142,6 +149,7 @@ jobs:
             -DGUITARMIDI_SYSEX_DIAGNOSTICS=OFF `
             -DGUITARMIDI_INFERENCE_DIAGNOSTICS=OFF `
             "-DGUITARMIDI_DIAGNOSTIC_STDERR_LOGGER=$stderrLogger" `
+            "-DGUITARMIDI_DIAGNOSTIC_CACHE_GUARD=$cacheGuard" `
             -DTFLITE_ENABLE_XNNPACK=ON `
             -DCMAKE_C_COMPILER_LAUNCHER=sccache `
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `

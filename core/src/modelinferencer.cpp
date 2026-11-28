@@ -138,7 +138,16 @@
                 TfLiteXNNPackDelegateOptionsDefault();
             xnnpack_options.num_threads = NUM_INFERENCE_THREADS; // Set number of threads as appropriate for your
                                             // platform and application needs.
+#ifdef GUITARMIDI_DIAGNOSTIC_CACHE_GUARD
+            if (TfLiteXNNPackDelegateCanUseInMemoryWeightCacheProvider()) {
+                xnnpack_options.weight_cache_file_path = TfLiteXNNPackDelegateInMemoryFilePath();
+                guitarMidiTrace("XNNPACK in-memory cache supported", this);
+            } else {
+                guitarMidiTrace("XNNPACK in-memory cache unavailable; leaving default cache options", this);
+            }
+#else
             xnnpack_options.weight_cache_file_path = TfLiteXNNPackDelegateInMemoryFilePath();
+#endif
             // xnnpack_options.logging_level = TFLITE_XNNPACK_LOGGING_LEVEL_ERROR;
 
             // Create and retain the XNNPACK delegate.
