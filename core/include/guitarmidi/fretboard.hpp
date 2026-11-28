@@ -27,6 +27,7 @@
 #include <guitarmidi/config.hpp>
 #include <speex/speex_resampler.h>
 #include <guitarmidi/fretboard_api.hpp>
+#include <guitarmidi/lifecycle_trace.hpp>
 
 using namespace std;
 using namespace GuitarMidi;
@@ -72,10 +73,14 @@ public:
     FretBoard(GuitarMidiOutput*);
     /** Releases resampling buffers and fretboard resources. */
     virtual ~FretBoard(){
-
-        if (m_resampler)
+        guitarMidiTrace("fretboard destructor enter", this, &m_noteinferencer);
+        if (m_resampler) {
+            guitarMidiTrace("before resampler delete", this, m_resampler);
             speex_resampler_destroy(m_resampler);
+            guitarMidiTrace("after resampler delete", this);
+        }
         delete[] m_resampled_buffer;
+        guitarMidiTrace("fretboard destructor body complete; members follow", this);
     };
 
 

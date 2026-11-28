@@ -2,18 +2,22 @@
     #include <iostream>
     #include <tensorflow/lite/logger.h>
     #include <filesystem>
+    #include <guitarmidi/lifecycle_trace.hpp>
         // TFlite C++ API reference: https://ai.google.dev/edge/api/tflite/cc?hl=en
 
 
     void GuitarMidi::ModelInferencer::inferencing_loop(
         const std::string& bundle_path)
     {
+        guitarMidiTrace("inference worker enter", this);
         if (!initialize_interpreter(bundle_path)) {
             g_logger.error("Failed to initialize interpreter.\n");
             m_initialization_promise.set_value(false);
+            guitarMidiTrace("inference worker init failed", this);
             return;
         }
 
+        guitarMidiTrace("inference worker ready", this, m_interpreter.get());
         m_initialization_promise.set_value(true);
 
         while (!stop_thread.load(std::memory_order_acquire)) {
@@ -93,6 +97,7 @@
 
             #endif
         }
+        guitarMidiTrace("inference worker exit", this);
     }
 
     bool GuitarMidi::ModelInferencer::initialize_interpreter(const std::string &bundle_path)
@@ -216,18 +221,23 @@
 
     GuitarMidi::ModelInferencer::~ModelInferencer()
     {
+        guitarMidiTrace("model destructor enter", this, m_interpreter.get());
         // Request inference thread shutdown.
         stop_thread.store(
             true,
             std::memory_order_release
         );
 
+        guitarMidiTrace("stop requested", this);
         // Wake the thread if it is waiting for input.
         input_ready.notify();
+        guitarMidiTrace("worker notified", this);
 
         // Wait for inference and its use of XNNPACK to finish.
         if (inferencing_thread.joinable()) {
+            guitarMidiTrace("before worker join", this);
             inferencing_thread.join();
+            guitarMidiTrace("after worker join", this);
         }
 
         #ifdef GUITARMIDI_INFERENCE_DIAGNOSTICS
@@ -294,14 +304,20 @@
         #endif
 
         // Destroy interpreter before the XNNPACK delegate.
+        guitarMidiTrace("before interpreter reset", this, m_interpreter.get());
         m_interpreter.reset();
+        guitarMidiTrace("after interpreter reset", this);
 
         if (m_xnnpack_delegate) {
+            guitarMidiTrace("before delegate delete", this, m_xnnpack_delegate);
             TfLiteXNNPackDelegateDelete(m_xnnpack_delegate);
+            guitarMidiTrace("after delegate delete", this);
             m_xnnpack_delegate = nullptr;
         }
 
+        guitarMidiTrace("before model reset", this, m_model.get());
         m_model.reset();
+        guitarMidiTrace("model destructor body complete", this);
 
         // The notification is destroyed automatically
         // after this destructor finishes.

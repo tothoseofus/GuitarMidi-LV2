@@ -34,6 +34,7 @@
 #include <guitarmidi/fretboard_api.hpp>
 #include <midioutput.hpp>
 #include <lv2logger.hpp>
+#include <guitarmidi/lifecycle_trace.hpp>
 
 
 LoggerSingleton g_logger;
@@ -110,6 +111,7 @@ instantiate(const LV2_Descriptor *descriptor,
 	LV2_Log_Log *log = NULL;
 	LV2_Options_Option *options = NULL;
 	printf("Loading plugin\n");
+	guitarMidiTrace("instantiate enter", descriptor);
 	for (int i = 0; features[i]; ++i)
 	{
 		if (!strcmp(features[i]->URI, LV2_URID__map))
@@ -127,7 +129,9 @@ instantiate(const LV2_Descriptor *descriptor,
 	}
 	//lv2_log_logger_init(&g_logger, map, log);
 	LV2Logger* lv2logger=new LV2Logger(map,log);
+	guitarMidiTrace("instantiate installing logger", lv2logger, log);
 	g_logger.setLogger(lv2logger);
+	guitarMidiTrace("instantiate logger installed", lv2logger);
 
 	if (!map)
 	{
@@ -161,11 +165,13 @@ instantiate(const LV2_Descriptor *descriptor,
 	}
 	GuitarMidi::MidiOutputLV2 *midi = new GuitarMidi::MidiOutputLV2(map);
 	GuitarMidiPlugin *plugin = new GuitarMidiPlugin();
+	guitarMidiTrace("plugin allocated", plugin, midi);
 	lv2_atom_forge_init(&plugin->debug_forge, map);
 	plugin->debug_update_interval_samples = static_cast<uint64_t>(rate / 20.0);
 	if (plugin->debug_update_interval_samples == 0)
 		plugin->debug_update_interval_samples = 1;
 	plugin->fretboard = creatFretBoard(midi);
+	guitarMidiTrace("fretboard allocated", plugin, plugin->fretboard);
 	if (!plugin->fretboard->initialize(std::string(bundle_path), rate, buffer_size))
 	{
 		//lv2_log_error(&g_logger, "Failed to initialize FretBoardAPI\n");
@@ -174,6 +180,7 @@ instantiate(const LV2_Descriptor *descriptor,
 		delete plugin;
 		return NULL;
 	}
+	guitarMidiTrace("instantiate complete", plugin, plugin->fretboard);
 	return (LV2_Handle)plugin;
 }
 
@@ -204,9 +211,6 @@ if (port == DEBUG_DATA_PORT)
 
 	case FRETBOARD_MIDIOUTPUT:
 	{
-		// printf("Connecting MIDI OUTPUT PORT\n");
-		//lv2_log_note(&g_logger, "Connecting MIDI OUTPUT PORT\n");
-		g_logger.info("Connecting MIDI OUTPUT PORT\n");
 		GuitarMidi::MidiOutputLV2 *midi = dynamic_cast<GuitarMidi::MidiOutputLV2 *>(fretboard->getMidiOutput());
 		midi->setMidiOutput((LV2_Atom_Sequence *)data);
 	}
@@ -259,7 +263,9 @@ static void
 activate(LV2_Handle instance)
 {
 	// lv2_log_note(&g_logger, "Activating GuitarMidi-LV2 Plugin\n");
+	guitarMidiTrace("activate enter", instance);
 	g_logger.info( "Activating GuitarMidi-LV2 Plugin\n");
+	guitarMidiTrace("activate complete", instance);
 	// FretBoardAPI *notecl = (FretBoardAPI *)instance;
 }
 
@@ -389,19 +395,26 @@ static void
 deactivate(LV2_Handle instance)
 {
 	// lv2_log_note(&g_logger, "Deactivating GuitarMidi-LV2 Plugin\n");
+	guitarMidiTrace("deactivate enter", instance);
 	g_logger.info( "Deactivating GuitarMidi-LV2 Plugin\n");
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
 	plugin->fretboard->finalize();
+	guitarMidiTrace("deactivate complete", instance);
 }
 
 static void
 cleanup(LV2_Handle instance)
 {
 	// lv2_log_note(&g_logger, "Cleaning up GuitarMidi-LV2 Plugin\n");
+	guitarMidiTrace("cleanup enter", instance);
 	g_logger.info("Cleaning up GuitarMidi-LV2 Plugin\n");
 	GuitarMidiPlugin *plugin = (GuitarMidiPlugin *)instance;
+	guitarMidiTrace("before fretboard delete", plugin, plugin->fretboard);
 	delete plugin->fretboard;
+	guitarMidiTrace("after fretboard delete", plugin);
+	guitarMidiTrace("before plugin delete", plugin);
 	delete plugin;
+	guitarMidiTrace("cleanup complete", nullptr);
 }
 
 static const void *

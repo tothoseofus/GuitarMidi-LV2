@@ -22,6 +22,7 @@
 #include <guitarmidi/config.hpp>
 #include <string>
 #include <stdarg.h>
+#include <guitarmidi/lifecycle_trace.hpp>
 class LoggingAPI
 {
 public:
@@ -41,8 +42,10 @@ public:
         m_logger=logger;
     }
     ~LoggerSingleton(){
+        guitarMidiTrace("global logger destructor enter", this, m_logger);
         if(m_logger)
             delete m_logger;
+        guitarMidiTrace("global logger destructor complete", this);
     }
     void info(std::string info_message, ...)
     {
@@ -70,9 +73,12 @@ public:
     }
 
     void setLogger(LoggingAPI* logger){
-        if(m_logger!=nullptr)   
+        guitarMidiTrace("logger replacement enter", this, m_logger);
+        if(m_logger!=nullptr)
             delete m_logger;
+        guitarMidiTrace("old logger deleted", this);
         m_logger=logger;
+        guitarMidiTrace("logger replacement complete", this, m_logger);
     }
 };
 

@@ -34,6 +34,7 @@
 #include "tensorflow/lite/optional_debug_tools.h"
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include <guitarmidi/modelinferencer.hpp>
+#include <guitarmidi/lifecycle_trace.hpp>
 using namespace std;
 using namespace tflite;
 namespace GuitarMidi{
@@ -74,8 +75,11 @@ namespace GuitarMidi{
         NoteInferencer(GuitarMidiOutput *midioutput);
         /** Releases the MIDI output owned by the inferencer. */
         ~NoteInferencer(){
+            guitarMidiTrace("note inferencer destructor enter", this, &m_model);
+            guitarMidiTrace("before MIDI output delete", this, m_midioutput);
             if(m_midioutput!=nullptr)
                 delete m_midioutput;
+            guitarMidiTrace("note inferencer destructor body complete; model follows", this);
         }
 
         /** Loads and initializes the neural-network model. */

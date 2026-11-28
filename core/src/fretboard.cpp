@@ -79,9 +79,11 @@ bool FretBoard::initialize(const std::string &bundle_path, int samplerate, int b
 
 void FretBoard::finalize()
 {
+    guitarMidiTrace("fretboard finalize enter", this, &m_noteinferencer);
     m_noteinferencer.finalize();
-
+    guitarMidiTrace("before filterbank reset", this, &m_filterbank);
     m_filterbank.reset();
+    guitarMidiTrace("fretboard finalize complete", this);
 }
 
 void FretBoard::setBypassed(bool bypassed)
